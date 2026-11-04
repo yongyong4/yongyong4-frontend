@@ -62,18 +62,44 @@ src/
 
 ## 화면과 분담
 
-| 화면                | 주소            | 파일                 | 담당 |
-| ------------------- | --------------- | -------------------- | ---- |
-| O-01~03 온보딩      | `/onboarding`   | `pages/onboarding`   | 미정 |
-| S-01 홈             | `/`             | `pages/home`         | 미정 |
-| S-01-1 장소 검색    | `/search`       | `pages/place-search` | 미정 |
-| S-02 후보 경로      | `/routes`       | `pages/routes`       | 미정 |
-| S-03 전략 비교      | `/strategy`     | `pages/strategy`     | 미정 |
-| S-05 이동 중        | `/trip`         | `pages/trip`         | 미정 |
-| S-06 이동 요약      | `/trip/summary` | `pages/trip-summary` | 미정 |
-| S-07 서비스 안내    | `/guide`        | `pages/guide`        | 미정 |
-| P-01~P-05 팝업      | -               | `components/popups`  | 미정 |
-| C-01~C-06 공통 요소 | -               | `components/common`  | 미정 |
+### 서연님: 경로 탐색 및 추천
+
+| 화면                       | 주소          | 파일                 |
+| -------------------------- | ------------- | -------------------- |
+| O-01~03 온보딩 1, 2, 3     | `/onboarding` | `pages/onboarding`   |
+| S-01 홈 1, 2               | `/`           | `pages/home`         |
+| S-01-1 장소 검색           | `/search`     | `pages/place-search` |
+| S-02 후보 경로 목록 1, 2   | `/routes`     | `pages/routes`       |
+| S-03 전략 비교             | `/strategy`   | `pages/strategy`     |
+| S-07 서비스 안내           | `/guide`      | `pages/guide`        |
+| P-05 위치 권한 안내 (팝업) | -             | `components/popups`  |
+
+| 컴포넌트              | 파일                |
+| --------------------- | ------------------- |
+| 아이콘                | `components/icons`  |
+| map/base-동백         | `components/map`    |
+| system/home-indicator | `components/layout` |
+
+### 지안: 이동 관리 및 실시간 대응
+
+| 화면                            | 주소            | 파일                 |
+| ------------------------------- | --------------- | -------------------- |
+| S-05 이동 중 1, 2, 3, 4         | `/trip`         | `pages/trip`         |
+| S-06 이동 요약                  | `/trip/summary` | `pages/trip-summary` |
+| P-01 경로 변경 제안 (팝업)      | -               | `components/popups`  |
+| P-02 탑승 실패 후 재평가 (팝업) | -               | `components/popups`  |
+| P-03 이동 종료 확인 (팝업)      | -               | `components/popups`  |
+| P-04 정류장 도착 (팝업)         | -               | `components/popups`  |
+
+| 컴포넌트                    | 파일                |
+| --------------------------- | ------------------- |
+| Level Pill (C-01 단계 배지) | `components/common` |
+| Button                      | `components/common` |
+| Line Badge (노선 배지)      | `components/common` |
+| Mode Toggle                 | `components/common` |
+
+> 공통 컴포넌트는 서로의 화면에서도 씁니다. 예를 들어 S-02, S-03에도 Level Pill, Line Badge, Button이 들어가니
+> 먼저 만들어서 merge하고, 상대방 컴포넌트를 고쳐야 하면 담당자에게 먼저 알려주세요.
 
 ## 협업 규칙
 
