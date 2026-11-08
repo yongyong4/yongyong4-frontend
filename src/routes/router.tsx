@@ -3,6 +3,7 @@ import { createBrowserRouter } from 'react-router'
 import MobileLayout from '@/components/layout/MobileLayout'
 import GuidePage from '@/pages/guide/GuidePage'
 import HomePage from '@/pages/home/HomePage'
+import ComponentsPage from '@/pages/dev/ComponentsPage'
 import NotFoundPage from '@/pages/not-found/NotFoundPage'
 import OnboardingPage from '@/pages/onboarding/OnboardingPage'
 import PlaceSearchPage from '@/pages/place-search/PlaceSearchPage'
@@ -24,6 +25,8 @@ export const router = createBrowserRouter([
       { path: PATHS.trip, element: <TripPage /> },
       { path: PATHS.tripSummary, element: <TripSummaryPage /> },
       { path: PATHS.guide, element: <GuidePage /> },
+      // 개발 서버에서만 보이는 컴포넌트 미리보기
+      ...(import.meta.env.DEV ? [{ path: '/dev/components', element: <ComponentsPage /> }] : []),
       { path: '*', element: <NotFoundPage /> },
     ],
   },
