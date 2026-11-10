@@ -13,10 +13,12 @@ type IntroSectionProps = {
   /** 현재 장 (0부터) */
   index: number
   total: number
+  /** 소개 카드를 눌렀을 때 (서비스 안내로 이동) */
+  onCardClick?: () => void
 }
 
 // "이렇게 도와드려요" 소개 카드 + 페이지 점
-export default function IntroSection({ slide, index, total }: IntroSectionProps) {
+export default function IntroSection({ slide, index, total, onCardClick }: IntroSectionProps) {
   return (
     <section>
       <div className="text-title3 flex items-center justify-between font-medium">
@@ -27,18 +29,25 @@ export default function IntroSection({ slide, index, total }: IntroSectionProps)
         </p>
       </div>
 
-      <article className="bg-surface-default mt-2.5 flex items-center gap-3.5 rounded-[20px] p-5">
-        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-          <p className="text-label1 text-brand-strong font-medium">{slide.eyebrow}</p>
-          <p className="text-title3 font-medium">{slide.title}</p>
-          <p className="text-note text-text-secondary whitespace-pre-line">{slide.description}</p>
-        </div>
-        <div className="bg-surface-sunken flex shrink-0 flex-col gap-1.5 rounded-[14px] p-3">
+      {/* 눌림 효과는 피그마에 없어서 Button과 같은 임시 처리 */}
+      <button
+        type="button"
+        onClick={onCardClick}
+        className="bg-surface-default mt-2.5 flex w-full items-center gap-3.5 rounded-[20px] p-5 text-left transition-[filter] active:brightness-95"
+      >
+        <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <span className="text-label1 text-brand-strong font-medium">{slide.eyebrow}</span>
+          <span className="text-title3 font-medium">{slide.title}</span>
+          <span className="text-note text-text-secondary whitespace-pre-line">
+            {slide.description}
+          </span>
+        </span>
+        <span className="bg-surface-sunken flex shrink-0 flex-col gap-1.5 rounded-[14px] p-3">
           <LevelChip level="가능" />
           <LevelChip level="주의" />
           <LevelChip level="위험" />
-        </div>
-      </article>
+        </span>
+      </button>
 
       <div className="mt-2.5 flex items-center justify-center gap-1.5" aria-hidden="true">
         {Array.from({ length: total }, (_, i) => (
