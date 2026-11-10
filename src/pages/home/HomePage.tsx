@@ -2,7 +2,7 @@
 // 관련 기능: F-01-01~06
 // 진행 중인 이동이 있으면 아래에 "이어 보기" 배너만 추가로 뜸 (같은 화면, 별도 페이지 아님)
 
-import { useState, type ComponentProps } from 'react'
+import { useEffect, useState, type ComponentProps } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 
 import HomeIndicator from '@/components/layout/HomeIndicator'
@@ -11,6 +11,7 @@ import { PATHS } from '@/routes/paths'
 
 import HomeHero from './components/HomeHero'
 import IntroSection, { type IntroSlide } from './components/IntroSection'
+import LocationPermissionSheet from './components/LocationPermissionSheet'
 import OngoingTripBanner from './components/OngoingTripBanner'
 import RecentSearches from './components/RecentSearches'
 import SearchCard from './components/SearchCard'
@@ -42,11 +43,107 @@ function readDestination(state: unknown): PlaceResult | null {
   return destination && typeof destination.name === 'string' ? destination : null
 }
 
+// 위치 권한 시트를 "나중에"로 닫았는지. 탭을 닫기 전까지만 기억해서
+// 장소를 고르고 홈으로 돌아올 때마다 다시 뜨지 않게 함
+const SHEET_DISMISSED_KEY = 'yy4:location-sheet-dismissed'
+
+function readSheetDismissed() {
+  try {
+    return sessionStorage.getItem(SHEET_DISMISSED_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function writeSheetDismissed() {
+  try {
+    sessionStorage.setItem(SHEET_DISMISSED_KEY, '1')
+  } catch {
+    // 저장 실패는 무시 (시트가 다시 뜰 뿐)
+  }
+}
+
+// 'checking' = 브라우저에 권한 상태를 물어보는 중, 'unknown' = 권한 상태를 알 수 없는 브라우저
+type LocationPermission = PermissionState | 'checking' | 'unknown'
+
+function useLocationPermission() {
+  const supported = 'geolocation' in navigator
+  const [permission, setPermission] = useState<LocationPermission>(() =>
+    'permissions' in navigator ? 'checking' : 'unknown',
+  )
+
+  // 브라우저 설정에서 권한을 바꾸면 바로 따라가도록 구독
+  useEffect(() => {
+    if (!('permissions' in navigator)) return
+
+    let cancelled = false
+    let status: PermissionStatus | undefined
+    navigator.permissions.query({ name: 'geolocation' }).then(
+      (result) => {
+        if (cancelled) return
+        status = result
+        setPermission(result.state)
+        result.onchange = () => setPermission(result.state)
+      },
+      () => {
+        if (!cancelled) setPermission('unknown')
+      },
+    )
+
+    return () => {
+      cancelled = true
+      if (status) status.onchange = null
+    }
+  }, [])
+
+  // 허용 요청. 처음이면 브라우저 위치 허용 창이 뜸. 위치를 얻으면 true
+  // TODO: 얻은 좌표를 역지오코딩에 넘겨 출발지 문구("현재 위치 · 동백동")를 만들기
+  const request = () =>
+    new Promise<boolean>((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        () => {
+          setPermission('granted')
+          resolve(true)
+        },
+        (error) => {
+          if (error.code === error.PERMISSION_DENIED) setPermission('denied')
+          resolve(false)
+        },
+        { timeout: 10_000 },
+      )
+    })
+
+  return { supported, permission, request }
+}
+
 export default function HomePage() {
   const navigate = useNavigate()
   const location = useLocation()
   const [recent, setRecent] = useState(MOCK_RECENT)
   const destination = readDestination(location.state)
+
+  const { supported, permission, request } = useLocationPermission()
+  const [sheetDismissed, setSheetDismissed] = useState(readSheetDismissed)
+  const [allowPending, setAllowPending] = useState(false)
+  const [allowFailed, setAllowFailed] = useState(false)
+
+  // 위치를 쓰고 있지 않거나(미허용·거부) 쓸 수 없는 상태면 안내 시트를 띄움
+  const showLocationSheet =
+    supported && permission !== 'checking' && permission !== 'granted' && !sheetDismissed
+
+  const closeLocationSheet = () => {
+    writeSheetDismissed()
+    setSheetDismissed(true)
+  }
+
+  const handleAllowLocation = async () => {
+    setAllowPending(true)
+    setAllowFailed(false)
+    const ok = await request()
+    setAllowPending(false)
+    // 성공하면 권한이 granted가 되어 시트가 저절로 닫힘. 실패하면 시트에서 안내 문구만 바뀜
+    if (!ok) setAllowFailed(true)
+  }
 
   return (
     <div className="bg-surface-sunken flex min-h-[844px] flex-col">
@@ -58,13 +155,27 @@ export default function HomePage() {
       />
 
       <main className="mt-[21px] flex-1 px-5">
-        <IntroSection slide={INTRO_SLIDES[0]} index={0} total={INTRO_TOTAL} />
+        <IntroSection
+          slide={INTRO_SLIDES[0]}
+          index={0}
+          total={INTRO_TOTAL}
+          onCardClick={() => navigate(PATHS.guide)}
+        />
         {recent.length > 0 && <RecentSearches items={recent} onClear={() => setRecent([])} />}
         <TrialNotice />
       </main>
 
       {MOCK_ONGOING_TRIP && (
         <OngoingTripBanner {...MOCK_ONGOING_TRIP} onResume={() => navigate(PATHS.trip)} />
+      )}
+
+      {showLocationSheet && (
+        <LocationPermissionSheet
+          onAllow={handleAllowLocation}
+          onLater={closeLocationSheet}
+          pending={allowPending}
+          failed={allowFailed}
+        />
       )}
 
       {/* 스크롤해도 화면 맨 아래에 붙어 있게 (피그마와 같음) */}
