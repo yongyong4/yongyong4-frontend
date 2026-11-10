@@ -13,6 +13,7 @@
   /* surface, line, text */
   --color-surface-default: #ffffff;
   --color-surface-sunken: #f2f4f6;
+  --color-line-default: #e5e8eb;
   --color-line-strong: #d1d6db;
   --color-text-primary: #191f28;
   --color-text-secondary: #4e5968;
@@ -21,6 +22,8 @@
 
   /* ui/elevation-1 */
   --shadow-elevation-1: 0 0 1px 0 rgb(0 0 0 / 0.06), 0 2px 8px 0 rgb(0 0 0 / 0.08);
+  /* ui/elevation-2 */
+  --shadow-elevation-2: 0 -4px 24px 0 rgb(0 0 0 / 0.12);
 
   /* level (단계: 가능 / 주의 / 위험 / 정보 없음) */
   --color-level-ok: #09807c;
@@ -59,6 +62,9 @@
   --text-caption1: 12px; /* Level Pill */
   --text-caption1--line-height: 1.4;
   --text-caption1--letter-spacing: -0.02em;
+  --text-note: 13px; /* 피그마 ui/Caption1 (위의 caption1은 피그마 Caption2 크기) */
+  --text-note--line-height: 1.45;
+  --text-note--letter-spacing: -0.02em;
   --text-micro: 11px; /* ui/Micro */
   --text-micro--line-height: 1.3;
   --text-micro--letter-spacing: -0.02em;
