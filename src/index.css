@@ -15,7 +15,12 @@
   --color-surface-sunken: #f2f4f6;
   --color-line-strong: #d1d6db;
   --color-text-primary: #191f28;
+  --color-text-secondary: #4e5968;
+  --color-text-tertiary: #8b95a1;
   --color-text-inverse: #ffffff;
+
+  /* ui/elevation-1 */
+  --shadow-elevation-1: 0 0 1px 0 rgb(0 0 0 / 0.06), 0 2px 8px 0 rgb(0 0 0 / 0.08);
 
   /* level (단계: 가능 / 주의 / 위험 / 정보 없음) */
   --color-level-ok: #09807c;
@@ -36,6 +41,15 @@
   --color-transit-walk: #959aa0; /* 도보 */
 
   /* 글자 스타일. 굵기는 font-* 클래스로 따로 지정 */
+  --text-title1: 22px; /* ui/Title1 */
+  --text-title1--line-height: 1.35;
+  --text-title1--letter-spacing: -0.02em;
+  --text-title3: 17px; /* ui/Title3 */
+  --text-title3--line-height: 1.4;
+  --text-title3--letter-spacing: -0.02em;
+  --text-body2: 15px; /* ui/Body2 */
+  --text-body2--line-height: 1.5;
+  --text-body2--letter-spacing: -0.02em;
   --text-body1: 16px; /* 버튼 L */
   --text-body1--line-height: 1.5;
   --text-body1--letter-spacing: -0.02em;
