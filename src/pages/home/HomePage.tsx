@@ -3,9 +3,10 @@
 // 진행 중인 이동이 있으면 아래에 "이어 보기" 배너만 추가로 뜸 (같은 화면, 별도 페이지 아님)
 
 import { useState, type ComponentProps } from 'react'
-import { useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
 
 import HomeIndicator from '@/components/layout/HomeIndicator'
+import type { PlaceResult } from '@/pages/place-search/components/PlaceResultItem'
 import { PATHS } from '@/routes/paths'
 
 import HomeHero from './components/HomeHero'
@@ -35,14 +36,26 @@ const INTRO_SLIDES: IntroSlide[] = [
 ]
 const INTRO_TOTAL = 3
 
+// 장소 검색 화면에서 장소를 고르면 navigate state로 { destination }이 넘어옴
+function readDestination(state: unknown): PlaceResult | null {
+  const destination = (state as { destination?: PlaceResult } | null)?.destination
+  return destination && typeof destination.name === 'string' ? destination : null
+}
+
 export default function HomePage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [recent, setRecent] = useState(MOCK_RECENT)
+  const destination = readDestination(location.state)
 
   return (
     <div className="bg-surface-sunken flex min-h-[844px] flex-col">
       <HomeHero status={MOCK_STATUS} />
-      <SearchCard origin={MOCK_ORIGIN} onDestinationClick={() => navigate(PATHS.placeSearch)} />
+      <SearchCard
+        origin={MOCK_ORIGIN}
+        destination={destination?.name}
+        onDestinationClick={() => navigate(PATHS.placeSearch)}
+      />
 
       <main className="mt-[21px] flex-1 px-5">
         <IntroSection slide={INTRO_SLIDES[0]} index={0} total={INTRO_TOTAL} />
