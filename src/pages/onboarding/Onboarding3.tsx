@@ -1,14 +1,13 @@
 // O-03 온보딩 3/3 - 이동 중 버튼 안내
 
-import locateGraySvg from '@/assets/onboarding/onboarding3-locate-gray.svg'
-import locateWhiteSvg from '@/assets/onboarding/onboarding3-locate-white.svg'
-import touchSvg from '@/assets/onboarding/onboarding3-touch.svg'
 import Button from '@/components/common/Button'
 import LineBadge from '@/components/common/LineBadge'
 
 import FloatCard from './components/FloatCard'
 import HintPill from './components/HintPill'
+import LocateGlyph from './components/LocateGlyph'
 import OnboardingFrame from './components/OnboardingFrame'
+import TouchMarker from './components/TouchMarker'
 
 type Onboarding3Props = {
   onStart: () => void
@@ -29,7 +28,7 @@ export default function Onboarding3({ onStart, onStartWithoutLocation }: Onboard
       footer={
         <div className="flex flex-col gap-1">
           <div className="bg-surface-sunken text-text-secondary flex items-center gap-2 rounded-[14px] px-3.5 py-3">
-            <img src={locateGraySvg} alt="" className="size-[18px] shrink-0" />
+            <LocateGlyph className="text-brand-strong shrink-0" />
             <p className={`min-w-0 flex-1 ${NOTE}`}>위치는 도착 확인에만 쓰고 저장하지 않아요</p>
           </div>
           <Button fullWidth className="mt-3" onClick={onStart}>
@@ -47,8 +46,8 @@ export default function Onboarding3({ onStart, onStartWithoutLocation }: Onboard
       illustration={
         <>
           <FloatCard className="top-[30px] left-7 flex w-[286px] items-center gap-2.5 rounded-2xl py-2.5 pr-3.5 pl-3">
-            <span className="bg-brand-primary flex size-8 shrink-0 items-center justify-center rounded-[10px]">
-              <img src={locateWhiteSvg} alt="" className="size-[18px]" />
+            <span className="bg-brand-primary text-text-inverse flex size-8 shrink-0 items-center justify-center rounded-[10px]">
+              <LocateGlyph />
             </span>
             <div className="flex min-w-0 flex-1 flex-col gap-px whitespace-nowrap">
               <p className="text-label1 font-medium">동백2차 정류장에 도착했나요?</p>
@@ -69,7 +68,7 @@ export default function Onboarding3({ onStart, onStartWithoutLocation }: Onboard
             </div>
           </FloatCard>
 
-          <img src={touchSvg} alt="" className="absolute top-[166px] left-[242px] size-11" />
+          <TouchMarker className="absolute top-[166px] left-[242px]" />
           <HintPill className="top-[261px] left-[100px]">탔다면 → 다음 구간 안내</HintPill>
         </>
       }

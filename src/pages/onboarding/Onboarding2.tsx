@@ -1,10 +1,10 @@
 // O-02 온보딩 2/3 - 대안 전략 제안
 
-import routeOverlaySvg from '@/assets/onboarding/onboarding2-route.svg'
 import Button from '@/components/common/Button'
 
 import OnboardingFrame from './components/OnboardingFrame'
 import RouteCard from './components/RouteCard'
+import RouteIllustration from './components/RouteIllustration'
 
 type Onboarding2Props = {
   onNext: () => void
@@ -29,7 +29,7 @@ export default function Onboarding2({ onNext, onSkip }: Onboarding2Props) {
         <>
           {/* 지도 배경 자리 (지도 SDK 연동 전 임시) */}
           <div className="absolute -top-[120px] -left-[30px] h-[844px] w-[390px] bg-[#f6f5f1] opacity-55" />
-          <img src={routeOverlaySvg} alt="" className="absolute top-0 left-0 h-[330px] w-[342px]" />
+          <RouteIllustration className="absolute top-0 left-0" />
 
           <RouteCard
             highlighted
