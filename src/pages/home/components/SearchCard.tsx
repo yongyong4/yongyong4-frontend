@@ -1,6 +1,10 @@
+import { cn } from '@/utils/cn'
+
 type SearchCardProps = {
   /** 출발지 표시 문구 (예: "현재 위치 · 동백동") */
   origin: string
+  /** 고른 도착지 이름. 없으면 "도착지를 검색하세요"가 보임 */
+  destination?: string
   onUseMyLocation?: () => void
   onDestinationClick?: () => void
   onSwap?: () => void
@@ -10,6 +14,7 @@ type SearchCardProps = {
 // 출발지·도착지 입력 카드. 히어로 위로 84px 겹쳐 올라감
 export default function SearchCard({
   origin,
+  destination,
   onUseMyLocation,
   onDestinationClick,
   onSwap,
@@ -34,9 +39,12 @@ export default function SearchCard({
           <button
             type="button"
             onClick={onDestinationClick}
-            className="text-body1 text-text-tertiary py-[11px] text-left font-medium"
+            className={cn(
+              'text-body1 truncate py-[11px] text-left font-medium',
+              destination ? 'text-text-primary' : 'text-text-tertiary',
+            )}
           >
-            도착지를 검색하세요
+            {destination ?? '도착지를 검색하세요'}
           </button>
         </div>
 
