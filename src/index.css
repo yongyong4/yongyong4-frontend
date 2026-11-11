@@ -47,6 +47,9 @@
   --text-title1: 22px; /* ui/Title1 */
   --text-title1--line-height: 1.35;
   --text-title1--letter-spacing: -0.02em;
+  --text-title2: 19px; /* ui/Title2 */
+  --text-title2--line-height: 1.4;
+  --text-title2--letter-spacing: -0.02em;
   --text-title3: 17px; /* ui/Title3 */
   --text-title3--line-height: 1.4;
   --text-title3--letter-spacing: -0.02em;
