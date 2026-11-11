@@ -83,4 +83,13 @@
   body {
     @apply text-text-primary bg-gray-100 antialiased;
   }
+
+  /* 스크롤은 되지만 스크롤바는 보이지 않게 */
+  * {
+    scrollbar-width: none;
+  }
+
+  *::-webkit-scrollbar {
+    display: none;
+  }
 }
