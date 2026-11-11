@@ -1,4 +1,5 @@
-import type { Stage } from '@/types/stage'
+import type { ReactNode } from 'react'
+
 import { cn } from '@/utils/cn'
 
 export type IntroSlide = {
@@ -6,6 +7,8 @@ export type IntroSlide = {
   title: string
   /** 줄바꿈은 \n */
   description: string
+  /** 카드 오른쪽에 들어가는 그림 */
+  visual: ReactNode
 }
 
 type IntroSectionProps = {
@@ -42,11 +45,7 @@ export default function IntroSection({ slide, index, total, onCardClick }: Intro
             {slide.description}
           </span>
         </span>
-        <span className="bg-surface-sunken flex shrink-0 flex-col gap-1.5 rounded-[14px] p-3">
-          <LevelChip level="가능" />
-          <LevelChip level="주의" />
-          <LevelChip level="위험" />
-        </span>
+        {slide.visual}
       </button>
 
       <div className="mt-2.5 flex items-center justify-center gap-1.5" aria-hidden="true">
@@ -64,23 +63,58 @@ export default function IntroSection({ slide, index, total, onCardClick }: Intro
   )
 }
 
-const LEVEL_CLASS: Record<Stage, string> = {
-  가능: 'bg-level-ok-weak text-level-ok',
-  주의: 'bg-level-warn-weak text-level-warn',
-  위험: 'bg-level-bad-weak text-level-bad',
-}
+// 좌석 배치 (true = 빈자리)
+const SEAT_ROWS = [
+  [false, false, true],
+  [false, true, false],
+  [true, false, false],
+  [false, false, true],
+]
 
-// 단계 표시. 공용 LevelPill(모서리 6px)과 달리 완전히 둥근 모양이라 여기서만 따로 씀
-function LevelChip({ level }: { level: Stage }) {
+// 소개 카드 1장: 버스 안 빈자리 그림
+export function SeatPreview() {
   return (
     <span
-      className={cn(
-        'text-caption1 inline-flex items-center gap-1 rounded-full px-2 py-[3px] font-medium whitespace-nowrap',
-        LEVEL_CLASS[level],
-      )}
+      aria-hidden="true"
+      className="bg-surface-sunken flex h-[105px] w-[71px] shrink-0 flex-col items-center justify-center gap-2 rounded-[14px] p-3"
     >
-      <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-current" />
-      {level}
+      <BusIcon />
+      <span className="flex flex-col gap-1">
+        {SEAT_ROWS.map((row, r) => (
+          <span key={r} className="flex gap-1">
+            {row.map((vacant, c) => (
+              <span
+                key={c}
+                className={cn(
+                  'size-2.5 rounded-[3px]',
+                  vacant ? 'bg-level-ok-weak border-level-ok border-[1.5px]' : 'bg-line-default',
+                )}
+              />
+            ))}
+          </span>
+        ))}
+      </span>
     </span>
+  )
+}
+
+// icon/bus 18px
+function BusIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="18"
+      height="18"
+      viewBox="0 0 18 18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="text-level-ok shrink-0"
+    >
+      <path d="M6 2.25H12C13.2426 2.25 14.25 3.25736 14.25 4.5V11.25C14.25 12.4926 13.2426 13.5 12 13.5H6C4.75736 13.5 3.75 12.4926 3.75 11.25V4.5C3.75 3.25736 4.75736 2.25 6 2.25Z" />
+      <path d="M3.75 8.25H14.25M6 15.75V13.5M12 15.75V13.5" />
+    </svg>
   )
 }

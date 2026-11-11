@@ -7,10 +7,14 @@ type RecentSearchesProps = {
 // 최근 검색한 장소 칩 목록
 export default function RecentSearches({ items, onSelect, onClear }: RecentSearchesProps) {
   return (
-    <section className="mt-6">
+    <section className="mt-[34px]">
       <div className="flex items-center justify-between">
-        <h2 className="text-title3 font-medium">최근 검색</h2>
-        <button type="button" onClick={onClear} className="text-note text-text-tertiary">
+        <h2 className="text-note leading-[14px] font-medium">최근 검색</h2>
+        <button
+          type="button"
+          onClick={onClear}
+          className="text-note text-text-tertiary leading-[14px]"
+        >
           전체 삭제
         </button>
       </div>
@@ -21,7 +25,7 @@ export default function RecentSearches({ items, onSelect, onClear }: RecentSearc
             <button
               type="button"
               onClick={() => onSelect?.(name)}
-              className="bg-surface-default border-line-default text-label1 flex items-center gap-1.5 rounded-full border px-3 py-2 font-medium"
+              className="bg-surface-default border-line-default text-note flex items-center gap-1.5 rounded-full border px-3 py-2 leading-[14px] font-medium"
             >
               <ClockIcon />
               {name}
