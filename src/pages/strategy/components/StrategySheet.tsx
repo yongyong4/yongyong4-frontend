@@ -29,10 +29,17 @@ export type StrategyOption = {
   detail: string
   /** 카드 맨 아래 설명. 강조할 숫자는 Em으로 감싸기 */
   note: ReactNode
+  /** 지도에 띄울 이름표 (예: "앞 정류장 · 동백 쥬네브"). [상세]를 누르면 이 전략 기준으로 바뀜 */
+  mapLabel?: string
+  /**
+   * [상세]를 눌렀을 때 시트 위쪽 요약을 이 전략 기준으로 바꿀 값.
+   * 없는 항목은 기본 요약(현재 경로) 그대로. 아예 없으면 기본 요약 그대로 보임
+   */
+  summary?: Partial<StrategySummary>
 }
 
-/** 시트에 보여줄 내용 */
-export type StrategySheetData = {
+/** 시트 위쪽 요약 (노선·도착 정보·여유시간·예측 빈자리) */
+export type StrategySummary = {
   routeBadge: { type: TransitType; label: string }
   /** 예: "동백2차 → 강남역" */
   title: string
@@ -43,6 +50,10 @@ export type StrategySheetData = {
   levelLabel?: string
   slack: StrategyStat
   seats: StrategyStat
+}
+
+/** 시트에 보여줄 내용 */
+export type StrategySheetData = StrategySummary & {
   strategies: StrategyOption[]
 }
 

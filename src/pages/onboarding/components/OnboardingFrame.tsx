@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
 
-import HomeIndicator from '@/components/layout/HomeIndicator'
 import { cn } from '@/utils/cn'
 
 import OnboardingHeader, { type OnboardingStep } from './OnboardingHeader'
@@ -14,11 +13,11 @@ type OnboardingFrameProps = {
   title: string
   description: string
   footer: ReactNode
-  /** footer 아래 여백. 기본 pb-6 (버튼 하단 58px) */
+  /** footer 아래 여백. 기본 pb-[58px] (버튼 하단 58px) */
   footerClassName?: string
 }
 
-// 온보딩 1~3 공통 뼈대: 헤더 → 일러스트 → 제목/설명 → 하단 버튼 → 홈 인디케이터
+// 온보딩 1~3 공통 뼈대: 헤더 → 일러스트 → 제목/설명 → 하단 버튼
 export default function OnboardingFrame({
   step,
   onSkip,
@@ -26,7 +25,7 @@ export default function OnboardingFrame({
   title,
   description,
   footer,
-  footerClassName = 'pb-6',
+  footerClassName = 'pb-[58px]',
 }: OnboardingFrameProps) {
   return (
     <div className="relative flex min-h-[844px] flex-col pt-[52px]">
@@ -43,8 +42,6 @@ export default function OnboardingFrame({
       </div>
 
       <div className={cn('mt-auto px-6', footerClassName)}>{footer}</div>
-
-      <HomeIndicator />
     </div>
   )
 }

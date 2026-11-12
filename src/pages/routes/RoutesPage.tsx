@@ -4,7 +4,6 @@
 
 import { useLocation, useNavigate } from 'react-router'
 
-import HomeIndicator from '@/components/layout/HomeIndicator'
 import { PATHS } from '@/routes/paths'
 
 import type { PlaceResult } from '@/pages/place-search/components/PlaceResultItem'
@@ -131,6 +130,12 @@ export default function RoutesPage() {
     else navigate(-1)
   }
 
+  // 고른 후보를 들고 이동 화면 위의 전략 비교(S-03)로 넘어감.
+  // navigate state는 복사 가능한 값만 담을 수 있는데, RoutePlan은 순수 데이터라 그대로 넘겨도 됨.
+  // TODO: 경로 검색 API 연동 후에는 plan.id 같은 식별자만 넘기고 S-03에서 다시 조회해도 됨
+  const selectPlan = (plan: RoutePlan) =>
+    navigate(PATHS.strategy, { state: { plan, origin: MOCK_ORIGIN, destination } })
+
   return (
     <div className="bg-surface-sunken flex min-h-[844px] flex-col">
       <RoutesHeader
@@ -145,16 +150,11 @@ export default function RoutesPage() {
         <ul className="flex flex-col gap-3">
           {MOCK_PLANS.map((plan) => (
             <li key={plan.id}>
-              <RoutePlanCard plan={plan} />
+              <RoutePlanCard plan={plan} onSelect={selectPlan} />
             </li>
           ))}
         </ul>
       </main>
-
-      {/* 스크롤해도 화면 맨 아래에 붙어 있게 (피그마와 같음) */}
-      <div className="sticky bottom-0 z-30 mt-auto">
-        <HomeIndicator />
-      </div>
     </div>
   )
 }

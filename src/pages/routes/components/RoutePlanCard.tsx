@@ -58,12 +58,33 @@ export type RoutePlan = {
 // ── 카드 ────────────────────────────────────────────────────────────
 
 // 후보 경로 한 장
-export default function RoutePlanCard({ plan }: { plan: RoutePlan }) {
+export default function RoutePlanCard({
+  plan,
+  onSelect,
+}: {
+  plan: RoutePlan
+  /** 카드를 눌렀을 때 */
+  onSelect?: (plan: RoutePlan) => void
+}) {
   return (
     <article
+      // 카드 안에 제목·줄 등 버튼에 못 넣는 요소가 있어서 button 대신 role로 처리
+      role={onSelect ? 'button' : undefined}
+      tabIndex={onSelect ? 0 : undefined}
+      onClick={onSelect && (() => onSelect(plan))}
+      onKeyDown={
+        onSelect &&
+        ((e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            onSelect(plan)
+          }
+        })
+      }
       className={cn(
         'bg-surface-default flex flex-col gap-3.5 rounded-[20px] px-[18px] pt-[18px] pb-4',
         plan.recommended && 'border-brand-primary border-[1.5px]',
+        onSelect && 'cursor-pointer',
       )}
     >
       <div className="flex items-center gap-2">

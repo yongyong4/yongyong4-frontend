@@ -5,7 +5,6 @@ import type { ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 
 import LevelPill from '@/components/common/LevelPill'
-import HomeIndicator from '@/components/layout/HomeIndicator'
 import { PATHS } from '@/routes/paths'
 import type { StageWithUnknown } from '@/types/stage'
 
@@ -107,11 +106,6 @@ export default function GuidePage() {
             <p className="text-note text-text-secondary">{faq.body}</p>
           </GuideCard>
         ))}
-      </div>
-
-      {/* 스크롤해도 화면 맨 아래에 붙어 있게 (피그마와 같음) */}
-      <div className="sticky bottom-0 z-30 mt-auto">
-        <HomeIndicator />
       </div>
     </div>
   )
