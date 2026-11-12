@@ -1,3 +1,5 @@
+import { getDeviceId } from '@/utils/storage'
+
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
 export class ApiError extends Error {
@@ -17,10 +19,12 @@ type RequestOptions = Omit<RequestInit, 'body'> & {
 }
 
 // 모든 BE 요청은 이 함수를 거침. 화면별 API 함수는 apis/ 아래에 따로 만들기
+// X-Device-Id: trips API에 필수 (F-01-05, F-03-07). 다른 API에 붙여도 문제없어서 모든 요청에 붙임
 export async function request<T>(path: string, { body, headers, ...init }: RequestOptions = {}) {
   const res = await fetch(`${BASE_URL}${path}`, {
     ...init,
     headers: {
+      'X-Device-Id': getDeviceId(),
       ...(body !== undefined && { 'Content-Type': 'application/json' }),
       ...headers,
     },

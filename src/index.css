@@ -71,6 +71,12 @@
   --text-micro: 11px; /* ui/Micro */
   --text-micro--line-height: 1.3;
   --text-micro--letter-spacing: -0.02em;
+  --text-display: 28px; /* ui/Display (이동 중 "4분 후"의 숫자) */
+  --text-display--line-height: 1.3;
+  --text-display--letter-spacing: -0.02em;
+
+  /* 실시간 숫자 강조 (피그마 live) */
+  --color-live: #e5383b;
 }
 
 @layer base {
