@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 
 import Button from '@/components/common/Button'
-import HomeIndicator from '@/components/layout/HomeIndicator'
 
 import StrategySheet, { type StrategyOption, type StrategySheetData } from './StrategySheet'
 
@@ -25,7 +24,11 @@ type StrategyOverlayProps = StrategySheetData & {
   onClose: () => void
   /** "이 전략으로 출발". 고른 전략을 그대로 넘겨줌 */
   onConfirm: (strategy: StrategyOption) => void
-  onDetail?: () => void
+  /**
+   * "상세". 지금 선택된 전략 기준으로 시트 위쪽 요약이 바뀜 (strategy.summary).
+   * 지도 이름표처럼 시트 밖을 바꿔야 하면 여기서 받은 전략의 mapLabel 등을 쓰면 됨
+   */
+  onDetail?: (strategy: StrategyOption) => void
 }
 
 /** 이만큼(px) 이상 내리면 시트가 닫힘 */
@@ -40,8 +43,14 @@ export default function StrategyOverlay({
   onDetail,
   ...sheetData
 }: StrategyOverlayProps) {
-  const { strategies } = sheetData
+  const { strategies, ...baseSummary } = sheetData
   const [selectedId, setSelectedId] = useState(defaultSelectedId ?? strategies[0]?.id ?? '')
+
+  // [상세]를 누른 전략. 시트 위쪽 요약이 이 전략 기준으로 바뀜 (없으면 기본 요약)
+  const [detailId, setDetailId] = useState<string | null>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const detailSummary = strategies.find((option) => option.id === detailId)?.summary
+  const summary = { ...baseSummary, ...detailSummary }
 
   // 손잡이를 잡고 내리는 동안 시트가 손가락을 따라 내려감
   const [dragY, setDragY] = useState(0)
@@ -85,6 +94,15 @@ export default function StrategyOverlay({
     if (!moved.current) close()
   }
 
+  const showDetail = () => {
+    const selected = strategies.find((option) => option.id === selectedId)
+    if (!selected) return
+    setDetailId(selected.id)
+    // 요약이 시트 맨 위에 있어서, 바뀐 걸 바로 볼 수 있게 맨 위로 올려줌
+    scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+    onDetail?.(selected)
+  }
+
   const confirm = () => {
     const selected = strategies.find((option) => option.id === selectedId)
     if (selected) onConfirm(selected)
@@ -106,18 +124,18 @@ export default function StrategyOverlay({
         type="button"
         onClick={close}
         aria-label="닫기"
-        className="bg-surface-default shadow-elevation-1 pointer-events-auto absolute top-[54px] left-4 flex size-10 items-center justify-center rounded-full"
+        className="bg-surface-default shadow-elevation-1 pointer-events-auto absolute top-[66px] left-4 flex size-10 items-center justify-center rounded-full"
       >
         <BackIcon />
       </button>
 
-      {/* 시트: 위에서 130px 아래부터 화면 끝까지. 안쪽만 스크롤됨 */}
+      {/* 시트: 위에서 313px 아래부터 화면 끝까지. 안쪽만 스크롤됨 */}
       <div
         style={{
           transform: `translateY(${dragY}px)`,
           transition: dragging ? 'none' : `transform ${DISMISS_ANIMATION_MS}ms ease-out`,
         }}
-        className="bg-surface-default shadow-elevation-2 pointer-events-auto absolute inset-x-0 top-[130px] bottom-0 flex flex-col rounded-t-3xl"
+        className="bg-surface-default shadow-elevation-2 pointer-events-auto absolute inset-x-0 top-[313px] bottom-0 flex flex-col rounded-t-3xl"
       >
         {/* 회색 손잡이. 잡기 쉽게 위쪽 28px 전체를 누르는 영역으로 씀 */}
         <button
@@ -134,23 +152,25 @@ export default function StrategyOverlay({
         </button>
 
         {/* 아래 pb는 하단 버튼에 가려지지 않게 */}
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-[120px]">
-          <StrategySheet {...sheetData} selectedId={selectedId} onSelect={setSelectedId} />
+        <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-5 pb-[120px]">
+          <StrategySheet
+            {...summary}
+            strategies={strategies}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+          />
         </div>
       </div>
 
       {/* 하단 버튼 */}
       <div className="bg-surface-default border-line-default pointer-events-auto absolute inset-x-0 bottom-0 border-t px-5 pt-3 pb-[42px]">
         <div className="flex items-center gap-2">
-          <Button variant="tertiary" onClick={onDetail} className="w-[120px] shrink-0">
+          <Button variant="tertiary" onClick={showDetail} className="w-[120px] shrink-0">
             상세
           </Button>
           <Button onClick={confirm} className="min-w-0 flex-1">
             이 전략으로 출발
           </Button>
-        </div>
-        <div className="absolute inset-x-0 bottom-0">
-          <HomeIndicator />
         </div>
       </div>
     </div>

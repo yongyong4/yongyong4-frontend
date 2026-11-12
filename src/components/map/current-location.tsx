@@ -1,6 +1,6 @@
 interface CurrentLocationProps {
-  x: number; // 픽셀 x 좌표 (base에서 변환 후 전달)
-  y: number; // 픽셀 y 좌표
+  x: number // 픽셀 x 좌표 (base에서 변환 후 전달)
+  y: number // 픽셀 y 좌표
 }
 
 export default function CurrentLocation({ x, y }: CurrentLocationProps) {
@@ -52,5 +52,5 @@ export default function CurrentLocation({ x, y }: CurrentLocationProps) {
         />
       </svg>
     </div>
-  );
+  )
 }

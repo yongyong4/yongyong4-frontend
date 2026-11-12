@@ -24,7 +24,7 @@ export default function Onboarding3({ onStart, onStartWithoutLocation }: Onboard
       onSkip={onStartWithoutLocation}
       title={'이동 중엔\n버튼만 눌러 주세요'}
       description="탑승 여부를 알려주시면, 탑승 시점을 기준으로 현재 경로의 위험 단계를 다시 계산해드려요."
-      footerClassName="pb-2.5"
+      footerClassName="pb-11"
       footer={
         <div className="flex flex-col gap-1">
           <div className="bg-surface-sunken text-text-secondary flex items-center gap-2 rounded-[14px] px-3.5 py-3">

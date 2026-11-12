@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 
 import { PATHS } from '@/routes/paths'
+import { onboardingStorage } from '@/utils/storage'
 
 import Onboarding1 from './Onboarding1'
 import Onboarding2 from './Onboarding2'
@@ -16,8 +17,11 @@ export default function OnboardingPage() {
   const [step, setStep] = useState<OnboardingStep>(1)
 
   const goNext = () => setStep((s) => (s < 3 ? ((s + 1) as OnboardingStep) : s))
-  // 건너뛰기·시작하기 → 홈. 온보딩으로 뒤로가기 못 하게 replace
-  const goHome = () => navigate(PATHS.home, { replace: true })
+  // 건너뛰기·시작하기 → 본 것으로 기록하고 홈. 온보딩으로 뒤로가기 못 하게 replace
+  const goHome = () => {
+    onboardingStorage.markSeen()
+    navigate(PATHS.home, { replace: true })
+  }
 
   if (step === 1) return <Onboarding1 onNext={goNext} onSkip={goHome} />
   if (step === 2) return <Onboarding2 onNext={goNext} onSkip={goHome} />

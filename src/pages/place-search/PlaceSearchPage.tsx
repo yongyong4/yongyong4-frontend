@@ -4,7 +4,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 
-import HomeIndicator from '@/components/layout/HomeIndicator'
 import { PATHS } from '@/routes/paths'
 
 import FilterChips from './components/FilterChips'
@@ -98,11 +97,6 @@ export default function PlaceSearchPage() {
         </ul>
         <MapPickRow />
       </main>
-
-      {/* 스크롤해도 화면 맨 아래에 붙어 있게 (피그마와 같음) */}
-      <div className="sticky bottom-0 z-30 mt-auto">
-        <HomeIndicator />
-      </div>
     </div>
   )
 }

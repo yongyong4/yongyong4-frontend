@@ -5,9 +5,9 @@
 import { useEffect, useState, type ComponentProps } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
 
-import HomeIndicator from '@/components/layout/HomeIndicator'
 import type { PlaceResult } from '@/pages/place-search/components/PlaceResultItem'
 import { PATHS } from '@/routes/paths'
+import { onboardingStorage } from '@/utils/storage'
 
 import HomeHero from './components/HomeHero'
 import IntroSection, { SeatPreview, type IntroSlide } from './components/IntroSection'
@@ -148,6 +148,11 @@ export default function HomePage() {
   // 출발지(현재 위치)와 도착지가 모두 채워지면 바로 후보 경로 목록으로 이동.
   // replace로 갈아끼워서 뒤로가기를 눌러도 이 화면에서 다시 튕겨 나가지 않음
   // TODO: 출발지는 지금 임시값이라 항상 채워진 것으로 봄. 위치 연동 후에는 실제 출발지가 있을 때만
+  // 처음 들어온 사용자는 온보딩부터 (건너뛰기·시작하기를 누르면 본 것으로 기록됨)
+  if (!onboardingStorage.isSeen()) {
+    return <Navigate to={PATHS.onboarding} replace />
+  }
+
   if (MOCK_ORIGIN && destination) {
     return <Navigate to={PATHS.routes} state={{ destination }} replace />
   }
@@ -185,11 +190,6 @@ export default function HomePage() {
           failed={allowFailed}
         />
       )}
-
-      {/* 스크롤해도 화면 맨 아래에 붙어 있게 (피그마와 같음) */}
-      <div className="sticky bottom-0 z-30">
-        <HomeIndicator />
-      </div>
     </div>
   )
 }
