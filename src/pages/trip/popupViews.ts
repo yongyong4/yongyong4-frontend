@@ -17,10 +17,9 @@ function busName(label: string | null | undefined) {
   return label ? `${label}번` : '다른 경로'
 }
 
+/** 좌석 정보가 없으면 null (문구에서 뺌, 기능명세서 C-01) */
 function seatsText(remainSeats: number | null | undefined) {
-  return remainSeats === null || remainSeats === undefined
-    ? '좌석 정보 없음'
-    : `예측 빈자리 ${remainSeats}석`
+  return remainSeats === null || remainSeats === undefined ? null : `예측 빈자리 ${remainSeats}석`
 }
 
 /** 구간 단계 → 전략 단계 (정보 없음은 주의로 봄, 재평가 명세) */
@@ -113,7 +112,9 @@ export function buildBoardingFailed(
         '이 정류장',
         waitMinutes === null ? '도착 정보 없음' : `${waitMinutes}분 후`,
         seatsText(wait.remainSeats),
-      ].join(' · '),
+      ]
+        .filter(Boolean)
+        .join(' · '),
       arrivalTime: formatTime(wait.expectedArrivalAt),
       totalMinutes: wait.totalMin,
     },

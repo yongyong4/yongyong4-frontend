@@ -12,7 +12,8 @@ export type BoardingRow = {
   key: string
   badge: { type: TransitType; label: string }
   name: string
-  boarded: boolean
+  /** 기능명세서 F-06-01: 탔어요 / 못 탔어요 / 기록 없음 */
+  result: 'boarded' | 'failed' | 'none'
 }
 
 export type HistoryRow = {
@@ -79,15 +80,23 @@ export function buildSummaryView(summary: TripSummary): SummaryView {
 
   summary.boardingResults.forEach((result) => {
     const label = result.routeLabel ?? ''
+    const badge = { type: toTransitType({ mode: 'BUS', routeLabel: label }), label }
+    // TODO: BE가 boardName을 주면 정류장 이름만 보여주기
+    const name = result.boardName
+      ? `${result.boardName.replace(/ 정류장$/, '')} 정류장`
+      : `${label}번 버스`
+
+    // 탑승 기록이 없는 버스 구간도 "기록 없음"으로 보여줌
+    if (result.events.length === 0) {
+      boardings.push({ key: `${result.segmentId}-none`, badge, name, result: 'none' })
+    }
+
     result.events.forEach((event, i) => {
       boardings.push({
         key: `${result.segmentId}-${i}`,
-        badge: { type: toTransitType({ mode: 'BUS', routeLabel: label }), label },
-        // TODO: BE가 boardName을 주면 정류장 이름만 보여주기
-        name: result.boardName
-          ? `${result.boardName.replace(/ 정류장$/, '')} 정류장`
-          : `${label}번 버스`,
-        boarded: event.status === 'BOARDED',
+        badge,
+        name,
+        result: event.status === 'BOARDED' ? 'boarded' : 'failed',
       })
       if (event.status === 'BOARD_FAILED') {
         failed = true

@@ -29,9 +29,8 @@ export type TimelineStep = {
   sub?: string
 }
 
-export type SeatsView =
-  | { kind: 'count'; prefix: string; count: number; suffix: string; warn: boolean }
-  | { kind: 'none'; text: string }
+/** 좌석 정보가 없거나 비좌석 노선이면 아예 표시하지 않음 (기능명세서 C-01) */
+export type SeatsView = { prefix: string; count: number; suffix: string; warn: boolean }
 
 export type TripAction = 'arriveStop' | 'board' | 'fail' | 'alight' | 'arriveDest'
 
@@ -46,7 +45,11 @@ export type TripView = {
   headline: { value: string | null; unit: string }
   seats: SeatsView | null
   basisTime: string | null
-  info: { label: string; value: string; pill: { level: StageWithUnknown; label: string } } | null
+  info: {
+    label: string
+    value: string
+    pill: { level: StageWithUnknown; label: string } | null
+  } | null
   steps: TimelineStep[]
   /** 지도 위 내 위치 옆 이름표 */
   mapLabel: string
@@ -109,13 +112,17 @@ function findCurrentIndex(
   return Math.max(firstTransit, 0)
 }
 
-function seatsView(remainSeats: number | null, seatType: string, seatStage?: StageCode): SeatsView {
-  if (remainSeats === null || seatType === 'NONE') return { kind: 'none', text: '좌석 정보 없음' }
+function seatsView(
+  remainSeats: number | null,
+  seatType: string,
+  seatStage?: StageCode,
+): SeatsView | null {
+  if (remainSeats === null || seatType === 'NONE') return null
   const warn = seatStage !== undefined && seatStage !== 'OK'
   if (seatType === 'OBSERVED') {
-    return { kind: 'count', prefix: '현재 빈자리 ', count: remainSeats, suffix: '석', warn }
+    return { prefix: '현재 빈자리 ', count: remainSeats, suffix: '석', warn }
   }
-  return { kind: 'count', prefix: '예측 빈자리 ', count: remainSeats, suffix: '석', warn }
+  return { prefix: '예측 빈자리 ', count: remainSeats, suffix: '석', warn }
 }
 
 /** 좌석 수로 단계 정하기 (재평가 명세: 5석 이상 가능, 1~4석 주의, 0석 위험) */
@@ -167,7 +174,9 @@ function buildSteps(
       const time = formatTime(next.predictedBusArrivalAt)
       const seats = getNextSegmentSeats(next)
       const seatText =
-        seats.remainSeats === null ? '좌석 정보 없음' : `예측 빈자리 ${seats.remainSeats}석`
+        seats.remainSeats === null || seats.seatType === 'NONE'
+          ? null
+          : `${seats.seatType === 'OBSERVED' ? '현재' : '예측'} 빈자리 ${seats.remainSeats}석`
       sub = [time ? `${time} 도착 예정` : null, seatText].filter(Boolean).join(' · ')
     } else if (state === 'done') {
       sub = `${segment.alightName ?? ''} 하차`
@@ -303,7 +312,7 @@ export function buildTripView(
               value: `${nextBusMinutes}분 후`,
               pill:
                 nextSeats === null
-                  ? { level: '정보 없음', label: '좌석 정보 없음' }
+                  ? null
                   : { level: seatLevel(nextSeats), label: `예측 빈자리 ${nextSeats}석` },
             },
       mapLabel: `${stop} · 내 위치`,
