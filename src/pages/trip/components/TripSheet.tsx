@@ -7,7 +7,6 @@ import stepUpcoming from '@/assets/trip/step-upcoming.svg'
 import Button from '@/components/common/Button'
 import LevelPill from '@/components/common/LevelPill'
 import LineBadge from '@/components/common/LineBadge'
-import { MESSAGES } from '@/constants/messages'
 import { cn } from '@/utils/cn'
 
 import type { SeatsView, StepState, TimelineStep, TripAction, TripView } from '../tripView'
@@ -33,12 +32,13 @@ export default function TripSheet({
   onAction,
   onRefresh,
 }: TripSheetProps) {
-  const warn = delayed || notice !== null
+  // 기능명세서 2-2 (C-02): 정보 지연이면 "○○:○○ 기준 · 정보 지연" + 회색
+  // F-05-02: 요청 실패면 "업데이트에 실패했어요. 다시 시도할게요" (주황)
   const basisText =
     notice ??
     (view.basisTime
       ? delayed
-        ? MESSAGES.apiError(view.basisTime)
+        ? `${view.basisTime} 기준 · 정보 지연`
         : `${view.basisTime} 기준 · 2분마다 갱신`
       : '2분마다 갱신')
 
@@ -65,7 +65,12 @@ export default function TripSheet({
       </div>
 
       <div className="flex w-full items-center gap-1">
-        <p className={cn('text-note', warn ? 'text-level-warn' : 'text-text-tertiary')}>
+        <p
+          className={cn(
+            'text-note',
+            notice ? 'text-level-warn' : delayed ? 'text-level-na' : 'text-text-tertiary',
+          )}
+        >
           {basisText}
         </p>
         <button
@@ -87,7 +92,9 @@ export default function TripSheet({
             {view.info.label}
           </p>
           <p className="text-label1 min-w-0 flex-1 font-medium">{view.info.value}</p>
-          <LevelPill level={view.info.pill.level} label={view.info.pill.label} />
+          {view.info.pill && (
+            <LevelPill level={view.info.pill.level} label={view.info.pill.label} />
+          )}
         </div>
       )}
 
@@ -124,15 +131,11 @@ function Seats({ seats }: { seats: SeatsView }) {
   return (
     <p className="text-label1 text-text-secondary flex items-center gap-[3px] font-medium whitespace-nowrap">
       <img alt="" src={iconSeat} width={14} height={14} className="shrink-0" />
-      {seats.kind === 'none' ? (
-        seats.text
-      ) : (
-        <span>
-          {seats.prefix}
-          <span className={seats.warn ? 'text-[#dc2626]' : undefined}>{seats.count}</span>
-          {seats.suffix}
-        </span>
-      )}
+      <span>
+        {seats.prefix}
+        <span className={seats.warn ? 'text-[#dc2626]' : undefined}>{seats.count}</span>
+        {seats.suffix}
+      </span>
     </p>
   )
 }

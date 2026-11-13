@@ -18,7 +18,7 @@ import LineBadge from '@/components/common/LineBadge'
 import { PATHS } from '@/routes/paths'
 import { cn } from '@/utils/cn'
 
-import { buildSummaryView, type HistoryRow } from './summaryView'
+import { buildSummaryView, type BoardingRow, type HistoryRow } from './summaryView'
 
 export default function TripSummaryPage() {
   const navigate = useNavigate()
@@ -85,7 +85,8 @@ export default function TripSummaryPage() {
 
         <div className="bg-surface-sunken mt-2.5 flex w-full flex-col gap-2.5 rounded-[18px] px-[18px] py-4">
           {view.durationMin === null ? (
-            <p className="text-body1 font-medium">소요 시간을 계산하지 못했어요</p>
+            // 기능명세서 F-06-01: 자동 종료인데 목적지 근처 도착 시각이 없으면 "기록 없음"
+            <p className="text-body1 font-medium">총 소요 시간 기록 없음</p>
           ) : (
             <p className="flex items-baseline gap-1 whitespace-nowrap">
               <span className="text-label1 text-text-secondary font-medium">총</span>
@@ -111,7 +112,7 @@ export default function TripSummaryPage() {
               <div key={row.key} className="flex items-center gap-2">
                 <LineBadge type={row.badge.type} label={row.badge.label} />
                 <p className="text-label1 min-w-0 flex-1 truncate font-medium">{row.name}</p>
-                <BoardingResultPill boarded={row.boarded} />
+                <BoardingResultPill result={row.result} />
               </div>
             ))}
           </section>
@@ -141,7 +142,16 @@ function Divider() {
   return <div aria-hidden="true" className="bg-surface-sunken h-2 w-full shrink-0" />
 }
 
-function BoardingResultPill({ boarded }: { boarded: boolean }) {
+function BoardingResultPill({ result }: { result: BoardingRow['result'] }) {
+  if (result === 'none') {
+    // 피그마에 없는 상태라 정보 없음 단계 색으로 표시
+    return (
+      <span className="text-caption1 bg-level-na-weak text-level-na shrink-0 rounded-md px-2 py-[3px] font-medium">
+        기록 없음
+      </span>
+    )
+  }
+  const boarded = result === 'boarded'
   return (
     <span
       className={cn(
