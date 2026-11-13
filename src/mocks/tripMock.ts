@@ -19,7 +19,10 @@ import type {
   ReevaluateRequest,
   ReevaluateResponse,
   SummarySeenResponse,
+  NextSegment,
   TripSegment,
+  WaitNextBusResponse,
+  WaitOption,
   TripStatusCode,
   TripSummary,
 } from '@/types/tripApi'
@@ -139,96 +142,106 @@ export function mockChangeStatus(body: ChangeStatusRequest): ChangeStatusRespons
 export function mockReevaluate(body: ReevaluateRequest): ReevaluateResponse {
   state.evaluationId += 1
 
+  // 실제 BE 응답 모양 (2026-11-13 확인). 탄 버스가 마지막 구간이면 nextSegment, targetSegmentId가 null
+  const riding = state.status === 'BOARDED'
+  const nextSegment: NextSegment = {
+    segmentIndex: 1,
+    routeLabel: '5003',
+    boardName: '동백2차',
+    predictedBusArrivalAt: minutesFromNow(6),
+    slackMin: 3,
+    slackStage: 'CAUTION',
+    remainSeats: 3,
+    seatType: 'PREDICTED',
+    seatStage: 'CAUTION',
+    boardingStage: 'CAUTION',
+    arriveIfBoard: minutesFromNow(56),
+    totalMinIfBoard: 58,
+    arriveIfMiss: minutesFromNow(74),
+    totalMinIfMiss: 76,
+    nextRouteLabel: '5003',
+    nextBusArrivalAt: minutesFromNow(24),
+    nextBusRemainSeats: 25,
+    nextBusSeatType: 'PREDICTED',
+    dataBasisAt: minutesFromNow(-1),
+  }
+
   const base: ReevaluateResponse = {
     tripId: state.tripId,
     evaluationId: state.evaluationId,
     triggerType: body.triggerType,
+    currentStatus: state.status,
     evaluatedAt: minutesFromNow(0),
     dataBasisAt: minutesFromNow(-1),
     dataDelayed: false,
-    currentRoute: {
-      tripRouteId: 201,
-      currentStatus: state.status,
-      expectedArrivalAt: minutesFromNow(65),
-      comparisonValueMin: 65,
-      strategyRiskStage: 'CAUTION',
-      nextSegment: {
-        segmentId: 302,
-        mode: 'BUS',
-        routeLabel: '5003',
-        boardName: '동백2차',
-        predictedBusArrivalAt: minutesFromNow(6),
-        remainSeats: 3,
-        seatType: 'PREDICTED',
-        slackMin: 3,
-        slackStage: 'CAUTION',
-        seatStage: 'CAUTION',
-        boardingStage: 'CAUTION',
-        dataBasisAt: minutesFromNow(-1),
-        nextBusArrivalAt: minutesFromNow(24),
-        nextRemainSeats: 25,
-        nextSeatType: 'PREDICTED',
-      },
-    },
     result: 'KEEP',
+    targetSegmentId: riding ? null : 302,
+    currentValueMin: 65,
+    suggestedValueMin: null,
+    savedMinutes: null,
+    nextSegment: riding ? null : nextSegment,
     suggestion: null,
+    waitOption: null,
     failureOptions: null,
+    reason: '지금 경로 그대로 가세요.',
   }
 
   if (state.status === 'BOARD_FAILED') {
-    // 명세서 "탑승 실패 후 재평가": 대안은 suggestion, 다음 버스 대기는 failureOptions.waitNextBus
+    const waitOption: WaitOption = {
+      action: 'WAIT_FOR_NEXT_BUS',
+      endpoint: 'boarding-failure/wait',
+      nextBusArrivalAt: minutesFromNow(18),
+      busArrivalAt: minutesFromNow(18),
+      expectedArrivalAt: minutesFromNow(83),
+      totalMin: 83,
+      totalMinIfBoard: 83,
+      boardingStage: 'OK',
+      strategyRiskStage: 'OK',
+      remainSeats: 25,
+      seatType: 'PREDICTED',
+      routeLabel: '5003',
+      title: '다음 버스 기다리기',
+    }
     return {
       ...base,
-      currentRoute: {
-        ...base.currentRoute,
-        expectedArrivalAt: minutesFromNow(83),
-        comparisonValueMin: 83,
-        nextSegment: {
-          ...base.currentRoute.nextSegment!,
-          predictedBusArrivalAt: minutesFromNow(18),
-          remainSeats: 25,
-          slackMin: 18,
-          slackStage: 'OK',
-          seatStage: 'OK',
-          boardingStage: 'OK',
-        },
+      currentValueMin: 83,
+      nextSegment: {
+        ...nextSegment,
+        predictedBusArrivalAt: minutesFromNow(18),
+        remainSeats: 25,
+        slackMin: 18,
+        slackStage: 'OK',
+        seatStage: 'OK',
+        boardingStage: 'OK',
       },
-      result: 'SUGGEST',
-      suggestion: {
-        strategyType: 'ALT_ROUTE',
-        comparisonValueMin: 75,
-        improvementMin: 8,
-        expectedArrivalAt: minutesFromNow(75),
-        strategyRiskStage: 'CAUTION',
-        reason: '다른 노선으로 이동할 수 있어요',
-        canAccept: true,
-        title: '5005번으로 바꾸기',
-        routeLabel: '5005',
-        moveToName: null,
-        extraWalkMin: 0,
-        busArrivalAt: minutesFromNow(7),
-        remainSeats: 3,
-        seatType: 'PREDICTED',
-      },
+      waitOption,
       failureOptions: {
-        waitNextBus: {
-          routeLabel: '5003',
-          predictedArrivalAt: minutesFromNow(18),
-          expectedArrivalAt: minutesFromNow(83),
-          boardingStage: 'OK',
-          comparisonValueMin: 83,
-          remainSeats: 25,
+        waitOption,
+        alternativeOption: {
+          strategyType: 'ALT_ROUTE',
+          comparisonValueMin: 75,
+          totalMin: 75,
+          expectedArrivalAt: minutesFromNow(75),
+          strategyRiskStage: 'CAUTION',
+          title: '5005번으로 바꾸기',
+          routeLabel: '5005',
+          moveToName: null,
+          extraWalkMin: 0,
+          busArrivalAt: minutesFromNow(7),
+          remainSeats: 3,
           seatType: 'PREDICTED',
         },
-        alternativeAvailable: true,
       },
+      reason: '다른 노선으로 이동할 수 있어요.',
     }
   }
 
-  if (body.triggerType === 'REFRESH' || forceSuggest) {
+  if (!riding && (body.triggerType === 'REFRESH' || forceSuggest)) {
     return {
       ...base,
       result: 'SUGGEST',
+      suggestedValueMin: 57,
+      savedMinutes: 8,
       suggestion: {
         strategyType: 'ALT_ROUTE',
         comparisonValueMin: 57,
@@ -247,10 +260,22 @@ export function mockReevaluate(body: ReevaluateRequest): ReevaluateResponse {
         remainSeats: 21,
         seatType: 'PREDICTED',
       },
+      reason: '5005번으로 바꾸면 8분 빨리 도착해요',
     }
   }
 
   return base
+}
+
+/** 탑승 실패 후 다음 버스 기다리기 */
+export function mockWaitNextBus(): WaitNextBusResponse {
+  state.status = 'WAITING'
+  return {
+    tripId: state.tripId,
+    currentStatus: state.status,
+    segmentId: 302,
+    reevaluationRequired: true,
+  }
 }
 
 export function mockDecide(evaluationId: number, accepted: boolean): DecisionResponse {

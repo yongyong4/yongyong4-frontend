@@ -6,7 +6,13 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { changeTripStatus, decideSuggestion, getActiveTrip, reevaluateTrip } from '@/apis/trip'
+import {
+  changeTripStatus,
+  decideSuggestion,
+  getActiveTrip,
+  reevaluateTrip,
+  waitForNextBus,
+} from '@/apis/trip'
 import { RECALCULATED_TOAST_MS, REEVALUATE_INTERVAL_MS } from '@/constants/config'
 import { MESSAGES } from '@/constants/messages'
 import type {
@@ -19,7 +25,8 @@ import { formatTime } from '@/utils/time'
 
 export const ACTIVE_TRIP_QUERY_KEY = ['trip', 'active'] as const
 
-export function useTripSession({ justStarted }: { justStarted: boolean }) {
+export function useTripSession() {
+  const queryClient = useQueryClient()
   const activeQuery = useQuery({ queryKey: ACTIVE_TRIP_QUERY_KEY, queryFn: getActiveTrip })
   const tripId = activeQuery.data?.trip?.tripId ?? null
 
@@ -39,6 +46,8 @@ export function useTripSession({ justStarted }: { justStarted: boolean }) {
         setEvaluation(result)
         setStatusOverride(null)
         setErrorMessage(null)
+        // 예상 도착 시각은 재평가 응답에 없고 진행 중 조회에만 있어서 다시 불러옴
+        void queryClient.invalidateQueries({ queryKey: ACTIVE_TRIP_QUERY_KEY })
         if (showToast) setToast(MESSAGES.recalculated(formatTime(result.evaluatedAt) ?? ''))
         return result
       } catch {
@@ -47,7 +56,7 @@ export function useTripSession({ justStarted }: { justStarted: boolean }) {
         return null
       }
     },
-    [tripId],
+    [tripId, queryClient],
   )
 
   // 최신 reevaluate를 타이머·이벤트에서 쓰기 위한 ref
@@ -57,10 +66,11 @@ export function useTripSession({ justStarted }: { justStarted: boolean }) {
   }, [reevaluate])
 
   // 처음 들어왔을 때 한 번
+  // 명세서에는 출발 직후 INITIAL이 있지만 실제 BE는 INITIAL을 400으로 막아서 RESUME으로 부름 (BE 확인 필요)
   useEffect(() => {
     if (tripId === null) return
-    void reevaluateRef.current(justStarted ? 'INITIAL' : 'RESUME')
-  }, [tripId, justStarted])
+    void reevaluateRef.current('RESUME')
+  }, [tripId])
 
   // 화면이 보이는 동안 2분마다, 다른 앱에 갔다가 돌아오면 바로 (토스트 표시)
   useEffect(() => {
@@ -112,9 +122,7 @@ export function useTripSession({ justStarted }: { justStarted: boolean }) {
     [tripId, reevaluate],
   )
 
-  const queryClient = useQueryClient()
-
-  /** P-01 수락·무시, P-02 선택 (탑승 실패 때 false = 다음 버스 기다리기) */
+  /** P-01 수락·무시, P-02 대안 경로 선택 */
   const decide = useCallback(
     async (evaluationId: number, accepted: boolean) => {
       if (tripId === null) return
@@ -134,9 +142,25 @@ export function useTripSession({ justStarted }: { justStarted: boolean }) {
     [tripId, reevaluate, queryClient],
   )
 
+  /** P-02 다음 버스 기다리기 (실제 BE는 decision이 아니라 boarding-failure/wait) */
+  const waitNextBus = useCallback(async () => {
+    if (tripId === null) return
+    setBusy(true)
+    try {
+      const res = await waitForNextBus(tripId)
+      setStatusOverride(res.currentStatus)
+      await reevaluate('STATUS_CHANGE')
+    } catch {
+      setErrorMessage(MESSAGES.updateFailed)
+    } finally {
+      setBusy(false)
+    }
+  }, [tripId, reevaluate])
+
   return {
     activeQuery,
     decide,
+    waitNextBus,
     trip: activeQuery.data?.trip ?? null,
     evaluation,
     statusOverride,

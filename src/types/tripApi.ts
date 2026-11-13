@@ -136,109 +136,132 @@ export type ReevaluateRequest = {
   alightUpdate?: { segmentId: number; userAlightAt: IsoDateTime } | null
 }
 
-/** 다음에 탈 버스 구간의 분석 결과 */
+// 아래 재평가 응답 타입은 명세서가 아니라 실제 BE 응답 기준 (2026-11-13 배포 서버에서 확인)
+// 명세서와 다른 점: currentRoute 묶음 없이 펼쳐서 옴, nextSegment는 segmentId 대신 segmentIndex,
+// 탑승 실패 선택지는 failureOptions.waitOption / alternativeOption
+
+/** 다음에 탈 버스 구간의 분석 결과 (구간 분석 segments[]와 같은 모양) */
 export type NextSegment = {
-  segmentId: number
-  mode: SegmentMode
+  /** 경로 안 순번. 구간 ID는 응답의 targetSegmentId를 쓸 것 */
+  segmentIndex: number
   routeLabel: string | null
   boardName: string | null
   predictedBusArrivalAt: IsoDateTime | null
-  // 명세서 페이지마다 좌석 필드 이름이 다름 (BE 확인 필요). 화면에서는 getNextSegmentSeats()로 읽을 것
-  // - 실시간 재평가 실행: remainSeats + seatType
-  // - 탑승 실패 후 재평가, 하차 시각 갱신: predictedRemainSeats (seatType 없음)
-  remainSeats?: number | null
-  predictedRemainSeats?: number | null
-  seatType?: SeatType
   slackMin: number | null
   slackStage: StageCode
+  remainSeats: number | null
+  seatType: SeatType
   seatStage: StageCode
   boardingStage: StageCode
+  arriveIfBoard: IsoDateTime | null
+  totalMinIfBoard: number | null
+  arriveIfMiss: IsoDateTime | null
+  totalMinIfMiss: number | null
+  nextRouteLabel: string | null
+  /** 그다음 버스 도착 시각 ("다음 도착 18분 후") */
+  nextBusArrivalAt: IsoDateTime | null
+  nextBusRemainSeats: number | null
+  nextBusSeatType: SeatType | null
   dataBasisAt: IsoDateTime | null
-  /** [BE 추가 예정] 그다음 버스 도착 시각 ("다음 도착 18분 후") */
-  nextBusArrivalAt?: IsoDateTime | null
-  /** [BE 추가 예정] 그다음 버스 예측 잔여 좌석. 필드 이름 미정 */
-  nextRemainSeats?: number | null
-  nextSeatType?: SeatType
 }
 
-/** 경로 변경 제안 (P-01) */
+/**
+ * 경로 변경 제안 (P-01) / 탑승 실패 후 대안 (P-02)
+ * TODO: 실제 응답에서 아직 못 봄 (확인한 시간대에 버스 정보가 없어서 제안이 안 나옴).
+ * 명세서 + /strategies의 strategies[] 이름으로 가정. 실제 응답을 보면 맞출 것
+ */
 export type Suggestion = {
-  strategyType: StrategyType
-  comparisonValueMin: number
+  strategyType?: StrategyType
+  comparisonValueMin?: number | null
   /** 지금 경로보다 몇 분 빨라지는지 */
-  improvementMin: number
-  expectedArrivalAt: IsoDateTime
-  strategyRiskStage: RiskStageCode
-  reason: string
-  canAccept: boolean
-  // [BE 추가 예정] P-01 화면 표시용. /strategies의 strategies[]와 같은 이름으로 온다고 가정
+  improvementMin?: number | null
+  expectedArrivalAt?: IsoDateTime | null
+  strategyRiskStage?: RiskStageCode
+  reason?: string
+  canAccept?: boolean
   title?: string
   routeLabel?: string | null
   moveToName?: string | null
   moveToX?: number | null
   moveToY?: number | null
-  extraWalkMin?: number
+  extraWalkMin?: number | null
   busArrivalAt?: IsoDateTime | null
   remainSeats?: number | null
   seatType?: SeatType
+  totalMin?: number | null
   route?: { segments: TripSegmentInput[] }
 }
 
-/**
- * 탑승 실패 후 선택지 (P-02), 명세서 "탑승 실패 후 재평가" 기준
- * - 다음 버스 기다리기 = waitNextBus → decision(accepted: false)
- * - 다른 경로로 가기 = 응답의 suggestion → decision(accepted: true)
- */
-export type WaitNextBusOption = {
-  routeLabel: string | null
+/** 탑승 실패 후 "다음 버스 기다리기" 선택지. 고르면 POST /boarding-failure/wait */
+export type WaitOption = {
+  action: 'WAIT_FOR_NEXT_BUS' | string
+  endpoint: string
   /** 다음 버스 도착 예정 시각. 도착 정보가 없으면 null */
-  predictedArrivalAt: IsoDateTime | null
+  nextBusArrivalAt: IsoDateTime | null
+  busArrivalAt: IsoDateTime | null
   /** 다음 버스를 탔을 때 목적지 예상 도착 시각 */
   expectedArrivalAt: IsoDateTime | null
+  totalMin: number | null
+  totalMinIfBoard: number | null
   boardingStage: StageCode
-  comparisonValueMin: number | null
-  /** [BE 추가 예정] 다음 버스 예측 잔여 좌석. 필드 이름 미정 */
-  remainSeats?: number | null
-  seatType?: SeatType
+  strategyRiskStage: RiskStageCode
+  remainSeats: number | null
+  seatType: SeatType
+  routeLabel: string | null
+  title: string
 }
 
+/** 탑승 실패 후 선택지 (P-02). 대안을 고르면 decision(accepted: true) */
 export type FailureOptions = {
-  waitNextBus: WaitNextBusOption
-  /** true면 suggestion에 대안 경로가 있음. false면 다음 버스 기다리기만 보여줌 */
-  alternativeAvailable: boolean
+  waitOption: WaitOption
+  alternativeOption: Suggestion | null
 }
 
 export type ReevaluateResponse = {
   tripId: number
   evaluationId: number
   triggerType: TriggerType
+  currentStatus: TripStatusCode
   evaluatedAt: IsoDateTime
   dataBasisAt: IsoDateTime | null
   /** true면 "○○:○○ 정보로 보여드려요" 표시 */
   dataDelayed: boolean
-  currentRoute: {
-    tripRouteId: number
-    currentStatus: TripStatusCode
-    expectedArrivalAt: IsoDateTime | null
-    comparisonValueMin: number | null
-    strategyRiskStage: RiskStageCode
-    nextSegment: NextSegment | null
-  }
   /** KEEP 경로 유지 / SUGGEST 변경 제안 */
-  result: 'KEEP' | 'SUGGEST'
+  result: 'KEEP' | 'SUGGEST' | string
+  /** 재평가한 버스 구간 ID (상태 변경 API에 보낼 segmentId) */
+  targetSegmentId: number | null
+  /** 지금 경로 비교값(분) */
+  currentValueMin: number | null
+  /** 제안 경로 비교값(분) */
+  suggestedValueMin: number | null
+  /** 바꾸면 몇 분 빨라지는지 */
+  savedMinutes: number | null
+  /** 다음 버스 구간. 탄 버스가 마지막이면 null */
+  nextSegment: NextSegment | null
   suggestion: Suggestion | null
-  /** 탑승 실패 후 재평가(BOARD_FAILED 상태 + STATUS_CHANGE)에서만 옴 */
+  /** 탑승 실패 재평가에서만 옴 (failureOptions.waitOption과 같은 값) */
+  waitOption: WaitOption | null
   failureOptions: FailureOptions | null
+  /** BE가 만든 근거 문장 (확률·퍼센트 없음) */
+  reason: string | null
 }
 
-/** 다음 버스 좌석. 필드 이름이 두 가지라 둘 다 확인함 */
+/** 다음 버스 좌석 */
 export function getNextSegmentSeats(segment: NextSegment): {
   remainSeats: number | null
   seatType: SeatType
 } {
-  const remainSeats = segment.remainSeats ?? segment.predictedRemainSeats ?? null
-  const seatType = segment.seatType ?? (remainSeats === null ? 'NONE' : 'PREDICTED')
-  return { remainSeats, seatType }
+  return { remainSeats: segment.remainSeats, seatType: segment.seatType ?? 'NONE' }
+}
+
+// ─── POST /trips/{tripId}/boarding-failure/wait 탑승 실패 후 다음 버스 기다리기 ───
+// 명세서에는 decision(accepted: false)로 되어 있지만 실제로는 이 API를 씀 (decision은 409)
+
+export type WaitNextBusResponse = {
+  tripId: number
+  currentStatus: TripStatusCode
+  segmentId: number
+  reevaluationRequired: boolean
 }
 
 // ─── PATCH /trips/{tripId}/evaluations/{evaluationId}/decision 제안 수락·무시 ───
@@ -266,9 +289,10 @@ export type EndTripResponse = {
   tripId: number
   currentStatus: 'ENDED'
   endType: EndType
-  startedAt: IsoDateTime
   endedAt: IsoDateTime
-  durationMin: number | null
+  // 명세서에는 있지만 실제 응답에는 없음 (요약은 summary API로 따로 받음)
+  startedAt?: IsoDateTime
+  durationMin?: number | null
 }
 
 // ─── GET /trips/{tripId}/summary 이동 요약 ───

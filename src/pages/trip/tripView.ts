@@ -42,7 +42,8 @@ export type TripView = {
   badge: { type: TransitType; label: string } | null
   sheetTitle: string
   level: { level: StageWithUnknown; label: string } | null
-  headline: { value: string; unit: string }
+  /** value가 null이면 숫자 없이 문구만 보여줌 (정보 없음) */
+  headline: { value: string | null; unit: string }
   seats: SeatsView | null
   basisTime: string | null
   info: { label: string; value: string; pill: { level: StageWithUnknown; label: string } } | null
@@ -133,6 +134,7 @@ function buildSteps(
   currentIndex: number,
   phase: TripPhase,
   next: NextSegment | null,
+  targetSegmentId: number | null,
 ): TimelineStep[] {
   const lastTransitIndex = segments.reduce((acc, s, i) => (isTransit(s) ? i : acc), -1)
   const steps: TimelineStep[] = []
@@ -161,7 +163,7 @@ function buildSteps(
     const name = segment.mode === 'BUS' ? `${label}번` : label
     const riding = state === 'current' && phase === 'riding'
     let sub: string | undefined
-    if (state === 'upcoming' && next?.segmentId === segment.segmentId) {
+    if (state === 'upcoming' && next && targetSegmentId === segment.segmentId) {
       const time = formatTime(next.predictedBusArrivalAt)
       const seats = getNextSegmentSeats(next)
       const seatText =
@@ -210,10 +212,11 @@ export function buildTripView(
   now: number,
 ): TripView {
   const segments = trip.currentRoute.segments
-  const status = statusOverride ?? evaluation?.currentRoute.currentStatus ?? trip.currentStatus
+  const status = statusOverride ?? evaluation?.currentStatus ?? trip.currentStatus
   const phase = toPhase(status)
-  const next = evaluation?.currentRoute.nextSegment ?? null
-  const currentIndex = findCurrentIndex(segments, phase, next?.segmentId ?? null)
+  const next = evaluation?.nextSegment ?? null
+  const targetSegmentId = evaluation?.targetSegmentId ?? null
+  const currentIndex = findCurrentIndex(segments, phase, targetSegmentId)
   const current = segments[currentIndex]
   const lastTransitIndex = segments.reduce((acc, s, i) => (isTransit(s) ? i : acc), -1)
 
@@ -223,7 +226,8 @@ export function buildTripView(
   const label = transit?.routeLabel ?? ''
   const busName = transit?.mode === 'BUS' ? `${label}번` : label
 
-  const expectedArrivalAt = evaluation?.currentRoute.expectedArrivalAt ?? trip.expectedArrivalAt
+  // 재평가 응답에는 예상 도착 시각이 없어서 진행 중 조회 값을 씀 (재평가 뒤 다시 불러옴)
+  const expectedArrivalAt = trip.expectedArrivalAt
   const origin = segments[0]?.boardName ?? '출발지'
   const arrivalTime = formatTime(expectedArrivalAt)
   const topTitle = `${origin} → ${trip.destName}${arrivalTime ? ` · ${arrivalTime} 도착 예정` : ''}`
@@ -234,7 +238,7 @@ export function buildTripView(
     : null
   const basisTime = formatTime(evaluation?.dataBasisAt ?? null)
   const busMinutes = minutesUntil(next?.predictedBusArrivalAt, now)
-  const steps = buildSteps(segments, currentIndex, phase, next)
+  const steps = buildSteps(segments, currentIndex, phase, next, targetSegmentId)
   const badge = transit ? { type: toTransitType(transit), label } : null
 
   const base = {
@@ -264,10 +268,10 @@ export function buildTripView(
       statusLabel: '탑승',
       sheetTitle: `${busName} 탑승 중 · ${alightName} 하차`,
       level: null,
-      headline: {
-        value: alightMinutes === null ? '-' : String(alightMinutes),
-        unit: `분 후 ${alightName} 하차`,
-      },
+      headline:
+        alightMinutes === null
+          ? { value: null, unit: `${alightName} 하차 예정` }
+          : { value: String(alightMinutes), unit: `분 후 ${alightName} 하차` },
       seats: null,
       info: null,
       mapLabel: '내 위치',
@@ -279,7 +283,7 @@ export function buildTripView(
   if (phase === 'waiting' || phase === 'failed') {
     const stop = (transit?.boardName ?? next?.boardName ?? '').replace(/ 정류장$/, '')
     const nextBusMinutes = minutesUntil(next?.nextBusArrivalAt, now)
-    const nextSeats = next?.nextRemainSeats ?? null
+    const nextSeats = next?.nextBusRemainSeats ?? null
 
     return {
       ...base,
@@ -288,7 +292,7 @@ export function buildTripView(
       level,
       headline:
         busMinutes === null
-          ? { value: '-', unit: '도착 정보가 없어요' }
+          ? { value: null, unit: '도착 정보가 없어요' }
           : { value: String(busMinutes), unit: '분 후 도착' },
       seats: seats ? seatsView(seats.remainSeats, seats.seatType, next?.seatStage) : null,
       info:
@@ -315,7 +319,10 @@ export function buildTripView(
     statusLabel: '이동 중',
     sheetTitle: `${stopName(walkTarget)}까지 걷는 중`,
     level,
-    headline: { value: String(current?.walkMin ?? '-'), unit: '분 후 정류장 도착' },
+    headline:
+      current?.walkMin === null || current?.walkMin === undefined
+        ? { value: null, unit: '정류장으로 걷는 중' }
+        : { value: String(current.walkMin), unit: '분 후 정류장 도착' },
     seats: seats ? seatsView(seats.remainSeats, seats.seatType, next?.seatStage) : null,
     info: next
       ? {
