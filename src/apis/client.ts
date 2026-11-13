@@ -1,6 +1,7 @@
 import { getDeviceId } from '@/utils/storage'
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
+// 환경 변수가 없거나 빈 값이면 /api (Vercel에 빈 값으로 넣으면 /v1/...로 불려서 HTML이 돌아옴)
+const BASE_URL = import.meta.env.VITE_API_BASE_URL?.trim() || '/api'
 
 export class ApiError extends Error {
   status: number
@@ -31,7 +32,12 @@ export async function request<T>(path: string, { body, headers, ...init }: Reque
     body: body !== undefined ? JSON.stringify(body) : undefined,
   })
 
-  const data = res.status === 204 ? null : await res.json().catch(() => null)
+  if (res.status === 204) return null as T
+
+  // 주소 설정이 틀리면 BE 대신 사이트 HTML(200)이 와서 화면이 계속 "불러오는 중"에 멈춤 → 에러로 처리
+  const isJson = res.headers.get('content-type')?.includes('application/json') ?? false
+  const data = isJson ? await res.json().catch(() => null) : null
   if (!res.ok) throw new ApiError(res.status, data)
+  if (!isJson) throw new ApiError(res.status, 'JSON이 아닌 응답 (API 주소 설정 확인)')
   return data as T
 }
