@@ -3,14 +3,14 @@ import type { ReactNode } from 'react'
 import LevelPill from '@/components/common/LevelPill'
 import LineBadge from '@/components/common/LineBadge'
 import { MESSAGES } from '@/constants/messages'
-import type { Stage, StageWithUnknown } from '@/types/stage'
+import type { StageWithUnknown } from '@/types/stage'
 import type { TransitType } from '@/types/transit'
 import { cn } from '@/utils/cn'
 
 // ── 데이터 모양 (API 응답을 이 모양으로 바꿔서 넘기면 됨) ─────────────────
 
 /** 여유시간·예측 빈자리 한 칸 (예: 값 "2분", 단계 "주의") */
-export type StrategyStat = { value: string; level: Stage }
+export type StrategyStat = { value: string; level: StageWithUnknown }
 
 export type StrategyOption = {
   id: string
@@ -63,10 +63,11 @@ type StrategySheetProps = StrategySheetData & {
   onSelect: (id: string) => void
 }
 
-const STAGE_TEXT: Record<Stage, string> = {
+const STAGE_TEXT: Record<StageWithUnknown, string> = {
   가능: 'text-level-ok',
   주의: 'text-level-warn',
   위험: 'text-level-bad',
+  '정보 없음': 'text-text-tertiary',
 }
 
 // 강조 숫자 (피그마 #dc2626)
@@ -93,18 +94,23 @@ export default function StrategySheet({
 }: StrategySheetProps) {
   return (
     <div>
-      <div className="flex items-start justify-between">
-        <div className="flex flex-col gap-1">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-1">
+          {/* 정류장 이름이 길면 제목이 두 줄로 내려가고, 배지와 단계 표시는 줄어들지 않음 */}
           <div className="flex items-center gap-1.5">
-            <LineBadge type={routeBadge.type} label={routeBadge.label} />
-            <h1 className="text-title2 font-medium whitespace-nowrap">{title}</h1>
+            <span className="shrink-0">
+              <LineBadge type={routeBadge.type} label={routeBadge.label} />
+            </span>
+            <h1 className="text-title2 min-w-0 font-medium break-keep">{title}</h1>
           </div>
           <p className="text-note text-text-secondary flex items-center gap-[5px] whitespace-nowrap">
             <span aria-hidden="true" className="bg-level-bad size-1.5 rounded-full" />
             {baseAt} 기준 · {arrivesInMinutes}분 후 도착
           </p>
         </div>
-        <LevelPill level={level} label={levelLabel} />
+        <span className="shrink-0">
+          <LevelPill level={level} label={levelLabel} />
+        </span>
       </div>
 
       <div className="mt-3.5 flex items-center gap-2">

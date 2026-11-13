@@ -60,9 +60,11 @@ export default function StrategyMapPreview({ stopLabel, originLabel }: StrategyM
         <circle cx="178" cy="238" r="8" fill="#4CB282" stroke="white" strokeWidth="3" />
       </svg>
 
-      <p className="bg-surface-default text-caption1 text-brand-strong shadow-elevation-1 absolute top-[93px] left-[140px] rounded-lg px-2 py-1 font-medium whitespace-nowrap">
-        {stopLabel}
-      </p>
+      {stopLabel && (
+        <p className="bg-surface-default text-caption1 text-brand-strong shadow-elevation-1 absolute top-[93px] left-[140px] rounded-lg px-2 py-1 font-medium whitespace-nowrap">
+          {stopLabel}
+        </p>
+      )}
       <p className="bg-surface-default text-caption1 text-text-primary shadow-elevation-1 absolute top-[171px] left-[137px] rounded-lg px-2 py-1 font-medium whitespace-nowrap">
         {originLabel}
       </p>

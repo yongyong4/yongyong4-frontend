@@ -29,6 +29,10 @@ type StrategyOverlayProps = StrategySheetData & {
    * 지도 이름표처럼 시트 밖을 바꿔야 하면 여기서 받은 전략의 mapLabel 등을 쓰면 됨
    */
   onDetail?: (strategy: StrategyOption) => void
+  /** 출발 요청을 보내는 중. 버튼을 잠가서 두 번 눌리지 않게 함 */
+  confirming?: boolean
+  /** 출발 요청이 실패했을 때 버튼 위에 보여줄 문구 */
+  confirmError?: string
 }
 
 /** 이만큼(px) 이상 내리면 시트가 닫힘 */
@@ -41,6 +45,8 @@ export default function StrategyOverlay({
   onClose,
   onConfirm,
   onDetail,
+  confirming = false,
+  confirmError,
   ...sheetData
 }: StrategyOverlayProps) {
   const { strategies, ...baseSummary } = sheetData
@@ -164,12 +170,21 @@ export default function StrategyOverlay({
 
       {/* 하단 버튼 */}
       <div className="bg-surface-default border-line-default pointer-events-auto absolute inset-x-0 bottom-0 border-t px-5 pt-3 pb-[42px]">
+        {/* 버튼 막대 높이가 변하지 않게 막대 위에 띄워서 보여줌 */}
+        {confirmError && (
+          <p
+            role="alert"
+            className="bg-text-primary text-text-inverse text-caption1 absolute right-5 bottom-full left-5 mb-2 rounded-xl px-3.5 py-2.5 text-center font-medium"
+          >
+            {confirmError}
+          </p>
+        )}
         <div className="flex items-center gap-2">
           <Button variant="tertiary" onClick={showDetail} className="w-[120px] shrink-0">
             상세
           </Button>
-          <Button onClick={confirm} className="min-w-0 flex-1">
-            이 전략으로 출발
+          <Button onClick={confirm} disabled={confirming} className="min-w-0 flex-1">
+            {confirming ? '출발하는 중' : '이 전략으로 출발'}
           </Button>
         </div>
       </div>
@@ -178,7 +193,7 @@ export default function StrategyOverlay({
 }
 
 // icon/back 22px (선 굵기 1.83)
-function BackIcon() {
+export function BackIcon() {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
