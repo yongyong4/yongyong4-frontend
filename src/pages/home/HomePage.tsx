@@ -2,12 +2,25 @@
 // 관련 기능: F-01-01~06
 // 진행 중인 이동이 있으면 아래에 "이어 보기" 배너만 추가로 뜸 (같은 화면, 별도 페이지 아님)
 
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState, type ComponentProps } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
 
+import { getOrigin, originLabel, peekOrigin, resetOrigin } from '@/apis/places'
+import { getActiveTrip } from '@/apis/trip'
+import { useNow } from '@/hooks/useNow'
 import type { PlaceResult } from '@/pages/place-search/components/PlaceResultItem'
+import {
+  addRecentSearch,
+  clearRecentSearches,
+  readRecentSearches,
+} from '@/pages/place-search/recentSearches'
+import { guessBusType } from '@/pages/routes/routePlans'
+import { ACTIVE_TRIP_QUERY_KEY } from '@/pages/trip/useTripSession'
 import { PATHS } from '@/routes/paths'
+import type { ActiveTrip } from '@/types/tripApi'
 import { onboardingStorage } from '@/utils/storage'
+import { minutesUntil } from '@/utils/time'
 
 import HomeHero from './components/HomeHero'
 import IntroSection, { SeatPreview, type IntroSlide } from './components/IntroSection'
@@ -19,12 +32,21 @@ import TrialNotice from './components/TrialNotice'
 
 type OngoingTrip = Omit<ComponentProps<typeof OngoingTripBanner>, 'onResume'>
 
-// TODO: 아래 값들은 위치·검색 기록·이동 상태 연동 전 임시 데이터
-const MOCK_ORIGIN = '현재 위치 · 동백동'
-const MOCK_RECENT = ['판교역', '기흥역', '동백 세브란스병원', '강남역']
-// 진행 중인 이동 없음. 배너를 미리 보려면 아래 값을 예시로 바꾸면 됨:
-// { origin: '동백역', destination: '강남역', transitType: '광역', busNo: '5003', minutesToArrival: 3 }
-const MOCK_ONGOING_TRIP = null as OngoingTrip | null
+// 진행 중인 이동(GET /api/v1/trips/active)을 "이어 보기" 배너 모양으로 바꿈.
+// 응답에는 지금 어느 구간인지가 없어서 첫 버스 구간을 기준으로 보여줌
+// TODO: 노선 종류(광역·일반·마을)는 응답에 없어서 번호 모양으로 추정함. BE가 내려주면 그 값 쓰기
+function toOngoingTrip(trip: ActiveTrip, now: number): OngoingTrip | null {
+  const { segments } = trip.currentRoute
+  const bus = segments.find((s) => s.mode === 'BUS')
+  if (!bus) return null
+  return {
+    origin: segments[0]?.boardName ?? '출발지',
+    destination: trip.destName,
+    transitType: guessBusType(bus.routeLabel),
+    busNo: bus.routeLabel ?? '',
+    minutesToArrival: minutesUntil(bus.plannedStartAt, now) ?? 0,
+  }
+}
 
 // 소개 카드는 3장(예측 빈 좌석 / 탑승 위험 단계 / 실시간 재평가) 중 1장만 디자인되어 있음
 const INTRO_SLIDES: IntroSlide[] = [
@@ -119,8 +141,19 @@ function useLocationPermission() {
 export default function HomePage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [recent, setRecent] = useState(MOCK_RECENT)
+  const queryClient = useQueryClient()
+  const now = useNow(30_000)
+  const [recent, setRecent] = useState(readRecentSearches)
   const destination = readDestination(location.state)
+
+  // 출발지: 위치가 허용돼 있으면 현재 위치, 아니면 기본 출발지(동백역)
+  const originQuery = useQuery({ queryKey: ['origin'], queryFn: getOrigin, staleTime: Infinity })
+  const origin = originQuery.data ?? peekOrigin()
+
+  // 진행 중인 이동이 있으면 배너로 이어 보기를 보여줌 (이동 중 화면과 같은 조회를 씀)
+  const activeTripQuery = useQuery({ queryKey: ACTIVE_TRIP_QUERY_KEY, queryFn: getActiveTrip })
+  const activeTrip = activeTripQuery.data?.active ? activeTripQuery.data.trip : null
+  const ongoingTrip = activeTrip ? toOngoingTrip(activeTrip, now) : null
 
   const { supported, permission, request } = useLocationPermission()
   const [sheetDismissed, setSheetDismissed] = useState(readSheetDismissed)
@@ -142,27 +175,45 @@ export default function HomePage() {
     const ok = await request()
     setAllowPending(false)
     // 성공하면 권한이 granted가 되어 시트가 저절로 닫힘. 실패하면 시트에서 안내 문구만 바뀜
-    if (!ok) setAllowFailed(true)
+    if (!ok) {
+      setAllowFailed(true)
+      return
+    }
+    // 이제부터 현재 위치를 출발지로 씀
+    resetOrigin()
+    void queryClient.invalidateQueries({ queryKey: ['origin'] })
   }
 
-  // 출발지(현재 위치)와 도착지가 모두 채워지면 바로 후보 경로 목록으로 이동.
-  // replace로 갈아끼워서 뒤로가기를 눌러도 이 화면에서 다시 튕겨 나가지 않음
-  // TODO: 출발지는 지금 임시값이라 항상 채워진 것으로 봄. 위치 연동 후에는 실제 출발지가 있을 때만
+  // 최근 검색 칩을 누르면 그 장소를 도착지로 바로 후보 경로 목록으로
+  const selectRecent = (name: string) => {
+    const place = recent.find((p) => p.name === name)
+    if (!place) return
+    addRecentSearch(place)
+    navigate(PATHS.routes, { state: { destination: place, origin } })
+  }
+
+  const clearRecent = () => {
+    clearRecentSearches()
+    setRecent([])
+  }
+
   // 처음 들어온 사용자는 온보딩부터 (건너뛰기·시작하기를 누르면 본 것으로 기록됨)
   if (!onboardingStorage.isSeen()) {
     return <Navigate to={PATHS.onboarding} replace />
   }
 
-  if (MOCK_ORIGIN && destination) {
-    return <Navigate to={PATHS.routes} state={{ destination }} replace />
+  // 출발지와 도착지가 모두 채워지면 바로 후보 경로 목록으로 이동.
+  // 출발지는 위치를 못 쓰는 경우에도 기본값이 있어서 도착지만 고르면 됨.
+  // replace로 갈아끼워서 뒤로가기를 눌러도 이 화면에서 다시 튕겨 나가지 않음
+  if (destination) {
+    return <Navigate to={PATHS.routes} state={{ destination, origin }} replace />
   }
 
   return (
     <div className="bg-surface-sunken flex min-h-[844px] flex-col">
       <HomeHero />
       <SearchCard
-        origin={MOCK_ORIGIN}
-        destination={destination?.name}
+        origin={originLabel(origin)}
         onDestinationClick={() => navigate(PATHS.placeSearch)}
       />
 
@@ -174,13 +225,17 @@ export default function HomePage() {
           total={INTRO_TOTAL}
           onCardClick={() => navigate(PATHS.guide)}
         />
-        {recent.length > 0 && <RecentSearches items={recent} onClear={() => setRecent([])} />}
+        {recent.length > 0 && (
+          <RecentSearches
+            items={recent.map((p) => p.name)}
+            onSelect={selectRecent}
+            onClear={clearRecent}
+          />
+        )}
         <TrialNotice />
       </main>
 
-      {MOCK_ONGOING_TRIP && (
-        <OngoingTripBanner {...MOCK_ONGOING_TRIP} onResume={() => navigate(PATHS.trip)} />
-      )}
+      {ongoingTrip && <OngoingTripBanner {...ongoingTrip} onResume={() => navigate(PATHS.trip)} />}
 
       {showLocationSheet && (
         <LocationPermissionSheet

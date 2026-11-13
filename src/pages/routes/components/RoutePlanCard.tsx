@@ -2,6 +2,7 @@ import { Fragment, type ReactNode } from 'react'
 
 import LevelPill from '@/components/common/LevelPill'
 import LineBadge from '@/components/common/LineBadge'
+import type { RouteInfo } from '@/apis/routes'
 import { MESSAGES } from '@/constants/messages'
 import type { StageWithUnknown } from '@/types/stage'
 import type { TransitType } from '@/types/transit'
@@ -21,8 +22,8 @@ export type RideScenario = {
     slackMinutes?: number
     seats?: number
   }
-  /** 못 탔을 때 */
-  miss: {
+  /** 못 탔을 때. 다음 버스 정보가 없으면 생략 */
+  miss?: {
     time: string
     note: string
     /** 다음 버스 번호 (예: "5003") */
@@ -39,6 +40,8 @@ export type PlanItem =
       scenario: RideScenario
     }
   | { kind: 'walk'; text: string }
+  /** 실시간 분석 없이 보여주기만 하는 탈 것 구간 (지하철 등). badge가 없는 노선은 글자만 */
+  | { kind: 'line'; badge: RouteBadge | null; text: string }
   /** 실시간 분석이 안 되는 구간 (GBIS 매칭 실패 등) */
   | { kind: 'unavailable'; time: string; note: string }
 
@@ -53,6 +56,8 @@ export type RoutePlan = {
   /** 단계 표시 문구. 없으면 level 그대로 (예: "분석 불가") */
   levelLabel?: string
   items: PlanItem[]
+  /** 이 후보의 경로 원본. 전략 비교·이동 시작 때 BE로 다시 보냄 */
+  route: RouteInfo
 }
 
 // ── 카드 ────────────────────────────────────────────────────────────
@@ -118,6 +123,15 @@ function PlanItemView({ item }: { item: PlanItem }) {
     )
   }
 
+  if (item.kind === 'line') {
+    return (
+      <div className="flex items-center gap-1.5">
+        {item.badge && <LineBadge type={item.badge.type} label={item.badge.label} />}
+        <p className="text-label1 text-text-secondary font-medium whitespace-nowrap">{item.text}</p>
+      </div>
+    )
+  }
+
   if (item.kind === 'unavailable') {
     return (
       <div className="flex gap-3">
@@ -151,7 +165,7 @@ function PlanItemView({ item }: { item: PlanItem }) {
       )}
 
       <div className="flex gap-3">
-        <RideTimeline />
+        <RideTimeline withMiss={!!miss} />
         <div className="flex min-w-0 flex-1 flex-col gap-3 pt-2.5">
           <div className="flex flex-col gap-0.5">
             <TimeLine
@@ -177,17 +191,19 @@ function PlanItemView({ item }: { item: PlanItem }) {
             )}
           </div>
 
-          <div className="flex flex-col gap-0.5">
-            <TimeLine
-              label="못 타면"
-              labelClass="text-level-warn"
-              time={miss.time}
-              note={miss.note}
-            />
-            <p className="text-note text-text-tertiary whitespace-nowrap">
-              {MESSAGES.nextBus(miss.nextBus, miss.nextInMinutes)}
-            </p>
-          </div>
+          {miss && (
+            <div className="flex flex-col gap-0.5">
+              <TimeLine
+                label="못 타면"
+                labelClass="text-level-warn"
+                time={miss.time}
+                note={miss.note}
+              />
+              <p className="text-note text-text-tertiary whitespace-nowrap">
+                {MESSAGES.nextBus(miss.nextBus, miss.nextInMinutes)}
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </>
@@ -221,7 +237,32 @@ function Em({ children }: { children: ReactNode }) {
 }
 
 // 왼쪽 타임라인: 초록 선(탈 때) + 주황 점선(못 탔을 때). 30×104
-function RideTimeline() {
+function RideTimeline({ withMiss }: { withMiss: boolean }) {
+  // 못 탔을 때 정보(다음 버스)가 없으면 초록 선만 짧게
+  if (!withMiss) {
+    return (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="30"
+        height="48"
+        viewBox="0 0 30 48"
+        fill="none"
+        aria-hidden="true"
+        className="shrink-0"
+      >
+        <path
+          d="M6 8V24H24"
+          stroke="#4CB282"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <circle cx="6" cy="8" r="5" fill="#4CB282" />
+        <circle cx="24" cy="24" r="4" fill="#4CB282" />
+      </svg>
+    )
+  }
+
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"

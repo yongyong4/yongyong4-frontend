@@ -3,6 +3,10 @@ export type PlaceKind = 'place' | 'busStop' | 'station'
 export type PlaceResult = {
   id: string
   kind: PlaceKind
+  /** 경도 */
+  x: number
+  /** 위도 */
+  y: number
   name: string
   /** 주소 또는 정류장이면 지나는 노선 등 보조 설명 */
   description: string
