@@ -26,7 +26,7 @@ const MY_LOCATION = { x: 120, y: 230 - MAP_OFFSET_Y }
 // 버스 현재 위치 마커는 BE와 협의해 MVP에서 뺐음 (도착·좌석 정보는 바텀시트에서 보여줌)
 export default function TripMap({ label, labelLeft = 138, showWalkPath }: TripMapProps) {
   return (
-    <div aria-hidden="true" className="absolute inset-0 overflow-hidden bg-[#f6f5f1]">
+    <div aria-hidden="true" className="absolute inset-0 isolate overflow-hidden bg-[#f6f5f1]">
       <div className="absolute left-0" style={{ top: MAP_OFFSET_Y }}>
         <MapBase currentLocation={MY_LOCATION} />
       </div>

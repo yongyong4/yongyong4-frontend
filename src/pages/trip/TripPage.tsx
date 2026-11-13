@@ -127,7 +127,9 @@ export default function TripPage() {
   const stopLabel = view.mapLabel.replace(/ 정류장$/, '').replace(/ · 내 위치$/, '')
 
   return (
-    <main className="relative h-dvh min-h-[844px] overflow-hidden">
+    // 지도+시트 전체 화면. 폰 화면(브라우저 주소창 빼고)에 딱 맞춰서 버튼이 화면 밖으로 밀리지 않게 함
+    // (레이아웃 기준 최소 844px를 쓰면 화면이 짧은 폰에서 시트 아래 버튼이 안 보였음)
+    <main className="fixed inset-y-0 left-1/2 w-[390px] -translate-x-1/2 overflow-hidden">
       <TripMap
         label={view.mapLabel}
         labelLeft={view.phase === 'riding' ? 161 : 138}

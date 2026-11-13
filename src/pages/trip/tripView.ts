@@ -80,6 +80,19 @@ export function stopName(name: string | null | undefined) {
   return name.endsWith('정류장') ? name : `${name} 정류장`
 }
 
+/** 지하철역 이름에 "역"을 한 번만 붙임 (예: 기흥 → 기흥역) */
+function stationName(name: string | null | undefined) {
+  if (!name) return '역'
+  return name.endsWith('역') ? name : `${name}역`
+}
+
+/** 탈것 이름. 노선 이름이 비어 있어도 "버스"·"지하철"로 보여줌 (예: 5003번, 수인분당선) */
+function transitName(segment: Pick<TripSegment, 'mode' | 'routeLabel'> | null | undefined) {
+  const label = segment?.routeLabel?.trim()
+  if (segment?.mode === 'SUBWAY') return label || '지하철'
+  return label ? `${label}번` : '버스'
+}
+
 /** 화면에 보여줄 단계 (BE 상태 → 화면 단계) */
 function toPhase(status: TripStatusCode): TripPhase {
   if (status === 'WAITING') return 'waiting'
@@ -154,7 +167,11 @@ function buildSteps(
       index < currentIndex ? 'done' : index === currentIndex ? 'current' : 'upcoming'
 
     if (segment.mode === 'WALK') {
-      const target = stopName(segment.alightName)
+      // 걸어가서 타는 게 지하철이면 "○○역", 버스면 "○○ 정류장"
+      const target =
+        segments[index + 1]?.mode === 'SUBWAY'
+          ? stationName(segment.alightName)
+          : stopName(segment.alightName)
       steps.push({
         key: String(segment.segmentId),
         state,
@@ -166,8 +183,7 @@ function buildSteps(
       return
     }
 
-    const label = segment.routeLabel ?? ''
-    const name = segment.mode === 'BUS' ? `${label}번` : label
+    const name = transitName(segment)
     const riding = state === 'current' && phase === 'riding'
     let sub: string | undefined
     if (state === 'upcoming' && next && targetSegmentId === segment.segmentId) {
@@ -233,7 +249,7 @@ export function buildTripView(
   const transit =
     phase === 'walking' ? (segments.slice(currentIndex).find(isTransit) ?? null) : current
   const label = transit?.routeLabel ?? ''
-  const busName = transit?.mode === 'BUS' ? `${label}번` : label
+  const busName = transitName(transit)
 
   // 재평가 응답에는 예상 도착 시각이 없어서 진행 중 조회 값을 씀 (재평가 뒤 다시 불러옴)
   const expectedArrivalAt = trip.expectedArrivalAt
