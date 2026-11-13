@@ -16,6 +16,7 @@ import type {
   ReevaluateResponse,
   SummarySeenResponse,
   TripSummary,
+  WaitNextBusResponse,
 } from '@/types/tripApi'
 
 const useMockEnv = import.meta.env.VITE_USE_MOCK
@@ -78,5 +79,16 @@ export function markSummarySeen(tripId: number) {
   return request<SummarySeenResponse>(`/v1/trips/${tripId}/summary/seen`, {
     method: 'PATCH',
     body: { seen: true },
+  })
+}
+
+/**
+ * F-05-05 탑승 실패 후 "다음 버스 기다리기" (P-02)
+ * 명세서에는 decision(accepted: false)로 되어 있지만 실제 BE는 이 API를 씀 (decision은 409)
+ */
+export function waitForNextBus(tripId: number) {
+  if (USE_TRIP_MOCK) return mock.delay(mock.mockWaitNextBus())
+  return request<WaitNextBusResponse>(`/v1/trips/${tripId}/boarding-failure/wait`, {
+    method: 'POST',
   })
 }

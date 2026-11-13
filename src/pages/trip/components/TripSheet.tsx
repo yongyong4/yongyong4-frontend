@@ -56,7 +56,9 @@ export default function TripSheet({
 
       <div className="mt-2.5 flex w-full items-baseline gap-2.5">
         <p className="flex items-baseline gap-0.5 whitespace-nowrap">
-          <span className="text-display text-live font-bold">{view.headline.value}</span>
+          {view.headline.value !== null && (
+            <span className="text-display text-live font-bold">{view.headline.value}</span>
+          )}
           <span className="text-title2 font-medium">{view.headline.unit}</span>
         </p>
         {view.seats && <Seats seats={view.seats} />}

@@ -14,7 +14,7 @@
 // - P-04 정류장 도착 확인: 정류장 50m 안에 들어왔을 때 (정류장 좌표가 BE에 추가되면 연결)
 
 import { useEffect, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router'
+import { useNavigate } from 'react-router'
 
 import { endTrip } from '@/apis/trip'
 import BoardingFailedPopup from '@/components/popups/BoardingFailedPopup'
@@ -28,12 +28,9 @@ import RecalculatedToast from './components/RecalculatedToast'
 import TripMap from './components/TripMap'
 import TripSheet from './components/TripSheet'
 import TripTopBar from './components/TripTopBar'
-import { buildBoardingFailed, buildRouteChange } from './popupViews'
+import { buildBoardingFailed, buildRouteChange, hasRouteChange } from './popupViews'
 import { buildTripView, type TripAction } from './tripView'
 import { useTripSession } from './useTripSession'
-
-/** S-03에서 출발하며 넘어올 때 navigate(PATHS.trip, { state: { justStarted: true } }) */
-type TripLocationState = { justStarted?: boolean } | null
 
 type ManualPopup = 'endTrip' | 'stopArrival' | null
 
@@ -48,11 +45,9 @@ function initialManualPopup(): ManualPopup {
 
 export default function TripPage() {
   const navigate = useNavigate()
-  const location = useLocation()
-  const justStarted = (location.state as TripLocationState)?.justStarted ?? false
   const now = useNow()
 
-  const session = useTripSession({ justStarted })
+  const session = useTripSession()
   const { activeQuery, trip, evaluation } = session
 
   const [manualPopup, setManualPopup] = useState<ManualPopup>(initialManualPopup)
@@ -88,12 +83,7 @@ export default function TripPage() {
   const boardingFailed =
     pending && view.phase === 'failed' ? buildBoardingFailed(pending, view, now) : null
   const routeChange =
-    pending &&
-    !pending.failureOptions &&
-    pending.result === 'SUGGEST' &&
-    pending.suggestion?.canAccept
-      ? buildRouteChange(pending, view, now)
-      : null
+    pending && hasRouteChange(pending) ? buildRouteChange(pending, view, now) : null
 
   const answer = async (accepted: boolean) => {
     if (!pending) return
@@ -180,7 +170,14 @@ export default function TripPage() {
         <BoardingFailedPopup
           {...boardingFailed}
           pending={session.busy}
-          onSelect={(id) => void answer(id === 'alternative')}
+          onSelect={(id) => {
+            if (!pending) return
+            setHandledEvaluationId(pending.evaluationId)
+            // 다음 버스 기다리기는 boarding-failure/wait, 대안 경로는 decision(accepted: true)
+            void (id === 'wait'
+              ? session.waitNextBus()
+              : session.decide(pending.evaluationId, true))
+          }}
         />
       ) : routeChange ? (
         <RouteChangePopup

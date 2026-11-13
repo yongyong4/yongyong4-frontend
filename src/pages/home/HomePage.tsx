@@ -23,7 +23,12 @@ import { onboardingStorage } from '@/utils/storage'
 import { minutesUntil } from '@/utils/time'
 
 import HomeHero from './components/HomeHero'
-import IntroSection, { SeatPreview, type IntroSlide } from './components/IntroSection'
+import IntroSection, {
+  LevelsPreview,
+  SeatPreview,
+  StrategyChangePreview,
+  type IntroSlide,
+} from './components/IntroSection'
 import LocationPermissionSheet from './components/LocationPermissionSheet'
 import OngoingTripBanner from './components/OngoingTripBanner'
 import RecentSearches from './components/RecentSearches'
@@ -48,7 +53,7 @@ function toOngoingTrip(trip: ActiveTrip, now: number): OngoingTrip | null {
   }
 }
 
-// 소개 카드는 3장(예측 빈 좌석 / 탑승 위험 단계 / 실시간 재평가) 중 1장만 디자인되어 있음
+// 소개 카드 3장 (피그마 "이렇게 도와드려요 카드": 예측 빈 좌석 / 탑승 위험 단계 / 실시간 재평가)
 const INTRO_SLIDES: IntroSlide[] = [
   {
     eyebrow: '예측 빈자리',
@@ -56,8 +61,19 @@ const INTRO_SLIDES: IntroSlide[] = [
     description: '내 정류장에 버스가 도착했을 때 남아 있을\n좌석 수를 예측해요',
     visual: <SeatPreview />,
   },
+  {
+    eyebrow: '탑승 가능 단계',
+    title: '한눈에 보는 탑승 가능성',
+    description: '여유시간과 예측 빈자리로 버스 탑승과\n이동 전략의 위험 단계를 판단해요',
+    visual: <LevelsPreview />,
+  },
+  {
+    eyebrow: '실시간 재평가 ∙ 대안 경로',
+    title: '더 나은 경로 제안',
+    description: '이동 중에도 위험을 다시 평가하고,\n필요하면 더 나은 이동 전략을 제안해요',
+    visual: <StrategyChangePreview />,
+  },
 ]
-const INTRO_TOTAL = 3
 
 // 장소 검색 화면에서 장소를 고르면 navigate state로 { destination }이 넘어옴
 function readDestination(state: unknown): PlaceResult | null {
@@ -219,12 +235,7 @@ export default function HomePage() {
 
       {/* 검색 카드 아래 21px + 피그마의 빈칸 10px */}
       <main className="mt-[31px] flex-1 px-5">
-        <IntroSection
-          slide={INTRO_SLIDES[0]}
-          index={0}
-          total={INTRO_TOTAL}
-          onCardClick={() => navigate(PATHS.guide)}
-        />
+        <IntroSection slides={INTRO_SLIDES} onCardClick={() => navigate(PATHS.guide)} />
         {recent.length > 0 && (
           <RecentSearches
             items={recent.map((p) => p.name)}
