@@ -1,11 +1,8 @@
-import locationDot from '@/assets/trip/location-dot.svg'
-import locationHalo from '@/assets/trip/location-halo.svg'
-import mapBase from '@/assets/trip/map-base.svg'
-import stationMarker from '@/assets/trip/map-station-marker.svg'
 import routeLine from '@/assets/trip/route-line.svg'
 import routeLineOutline from '@/assets/trip/route-line-outline.svg'
 import routeLineUp from '@/assets/trip/route-line-up.svg'
 import routeWalk from '@/assets/trip/route-walk.svg'
+import MapBase from '@/components/map/base'
 
 type TripMapProps = {
   /** 내 위치 옆 이름표 (예: "동백2차 정류장", "내 위치") */
@@ -16,65 +13,22 @@ type TripMapProps = {
   showWalkPath: boolean
 }
 
-// 피그마 map/base-동백 지도 (시연 지역 고정 이미지)
+/** 피그마에서 지도는 화면보다 60px 위로 올라가 있음 */
+const MAP_OFFSET_Y = -60
+
+/** 내 위치 (화면 기준 x 120, y 230 → 지도 기준으로 바꿔서 넘김) */
+const MY_LOCATION = { x: 120, y: 230 - MAP_OFFSET_Y }
+
+// 이동 중 화면 뒤의 지도 (피그마 S-05)
+// 지도 바탕·지명·역 마커·내 위치는 공통 지도(components/map/base)를 쓰고,
+// 이동 중 화면에만 있는 경로선과 이름표만 여기서 얹음
 // TODO: 지도 SDK를 붙이기 전까지 쓰는 임시 지도. 마커 위치도 피그마 위치 그대로 고정
 // 버스 현재 위치 마커는 BE와 협의해 MVP에서 뺐음 (도착·좌석 정보는 바텀시트에서 보여줌)
 export default function TripMap({ label, labelLeft = 138, showWalkPath }: TripMapProps) {
   return (
     <div aria-hidden="true" className="absolute inset-0 overflow-hidden bg-[#f6f5f1]">
-      {/* 지도 바탕: 피그마에서 화면보다 60px 위로 올라가 있음 */}
-      <div className="absolute inset-x-0 top-[-60px] h-[844px]">
-        <img alt="" src={mapBase} width={390} height={844} className="absolute inset-0" />
-        <MapText top={316} left={140}>
-          동백죽전대로
-        </MapText>
-        <div className="absolute top-[560px] left-[113px] flex h-[34px] w-[13px] items-center justify-center">
-          <MapText className="rotate-90">중부대로</MapText>
-        </div>
-        <div className="absolute top-[728px] left-[30px] flex h-[27px] w-[53px] items-center justify-center">
-          <MapText color="#99731a" className="-rotate-16">
-            영동고속도로
-          </MapText>
-        </div>
-        <MapText top={700} left={282} size="place" color="#408040">
-          동백호수공원
-        </MapText>
-        <MapText top={212} left={200} color="#4d80b2">
-          청덕천
-        </MapText>
-        <MapText top={170} left={40} size="area">
-          동백동
-        </MapText>
-        <MapText top={420} left={320} size="area">
-          중동
-        </MapText>
-        <MapText top={30} left={190} size="area">
-          어정동
-        </MapText>
-        <MapText top={250} left={150}>
-          쥬네브 아파트
-        </MapText>
-        <MapText top={520} left={150}>
-          동백 세브란스병원
-        </MapText>
-        <MapText top={640} left={20}>
-          백현마을
-        </MapText>
-
-        {/* 에버라인 동백역 */}
-        <div className="absolute top-[383px] left-[60px] size-[26px]">
-          <div className="absolute inset-[7.69%]">
-            <div className="absolute inset-[-6.82%]">
-              <img alt="" src={stationMarker} className="block size-full max-w-none" />
-            </div>
-          </div>
-          <span className="text-micro absolute inset-0 flex items-center justify-center font-bold text-white">
-            E
-          </span>
-        </div>
-        <MapText top={410} left={32} size="place" color="#408c26">
-          동백역
-        </MapText>
+      <div className="absolute left-0" style={{ top: MAP_OFFSET_Y }}>
+        <MapBase currentLocation={MY_LOCATION} />
       </div>
 
       {/* 경로 오버레이 (피그마 "경로 오버레이" 390×460) */}
@@ -101,62 +55,15 @@ export default function TripMap({ label, labelLeft = 138, showWalkPath }: TripMa
             </div>
           </div>
         )}
-
-        {/* 내 위치 */}
-        <div className="absolute inset-[45.22%_63.59%_45.22%_25.13%]">
-          <img alt="" src={locationHalo} className="absolute inset-0 block size-full max-w-none" />
-        </div>
-        <div className="absolute inset-[48.04%_66.92%_48.04%_28.46%]">
-          <div className="absolute inset-[-8.33%]">
-            <img alt="" src={locationDot} className="block size-full max-w-none" />
-          </div>
-        </div>
       </div>
 
       {/* 내 위치 이름표 */}
       <div
         style={{ left: labelLeft }}
-        className="shadow-elevation-1 text-caption1 text-brand-strong absolute top-[218px] rounded-lg bg-white px-2 py-1 font-medium whitespace-nowrap"
+        className="shadow-elevation-1 text-caption1 text-brand-strong absolute top-[218px] z-10 rounded-lg bg-white px-2 py-1 font-medium whitespace-nowrap"
       >
         {label}
       </div>
     </div>
-  )
-}
-
-type MapTextProps = {
-  children: string
-  top?: number
-  left?: number
-  /** label 10px 보통 / place 11px 굵게 / area 동네 이름 13px 굵게 */
-  size?: 'label' | 'place' | 'area'
-  color?: string
-  className?: string
-}
-
-const SIZE_CLASS: Record<NonNullable<MapTextProps['size']>, string> = {
-  label: 'text-[10px] font-medium',
-  place: 'text-[11px] font-bold',
-  area: 'text-[13px] font-bold',
-}
-
-const DEFAULT_COLOR: Record<NonNullable<MapTextProps['size']>, string> = {
-  label: '#73757a',
-  place: '#595c61',
-  area: '#595c61',
-}
-
-function MapText({ children, top, left, size = 'label', color, className }: MapTextProps) {
-  const positioned = top !== undefined && left !== undefined
-  return (
-    <p
-      style={{
-        color: color ?? DEFAULT_COLOR[size],
-        ...(positioned && { position: 'absolute', top, left }),
-      }}
-      className={`leading-[1.3] tracking-[-0.02em] whitespace-nowrap ${SIZE_CLASS[size]} ${className ?? ''}`}
-    >
-      {children}
-    </p>
   )
 }
