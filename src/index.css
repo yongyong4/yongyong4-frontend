@@ -1,4 +1,83 @@
 @import 'tailwindcss';
+@import 'pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css';
+
+/* 피그마 디자인 토큰 (2026 용용톤 4팀 > Component) */
+@theme {
+  --font-sans: 'Pretendard Variable', Pretendard, system-ui, sans-serif;
+
+  /* brand */
+  --color-brand-primary: #3eaa77;
+  --color-brand-strong: #2a7d57;
+  --color-brand-weak: #e9f6ef;
+
+  /* surface, line, text */
+  --color-surface-default: #ffffff;
+  --color-surface-sunken: #f2f4f6;
+  --color-line-default: #e5e8eb;
+  --color-line-strong: #d1d6db;
+  --color-text-primary: #191f28;
+  --color-text-secondary: #4e5968;
+  --color-text-tertiary: #8b95a1;
+  --color-text-inverse: #ffffff;
+
+  /* ui/elevation-1 */
+  --shadow-elevation-1: 0 0 1px 0 rgb(0 0 0 / 0.06), 0 2px 8px 0 rgb(0 0 0 / 0.08);
+  /* ui/elevation-2 */
+  --shadow-elevation-2: 0 -4px 24px 0 rgb(0 0 0 / 0.12);
+
+  /* level (단계: 가능 / 주의 / 위험 / 정보 없음) */
+  --color-level-ok: #09807c;
+  --color-level-ok-weak: #e3f5f4;
+  --color-level-warn: #e07b00;
+  --color-level-warn-weak: #fff3e0;
+  --color-level-bad: #e5383b;
+  --color-level-bad-weak: #fdecec;
+  --color-level-na: #6b7684;
+  --color-level-na-weak: #f2f4f6;
+
+  /* transit (노선 종류) */
+  --color-transit-express: #e60012; /* 광역 */
+  --color-transit-general: #33a65a; /* 일반 */
+  --color-transit-village: #f2a900; /* 마을 */
+  --color-transit-everline: #56ad2d; /* 에버라인 */
+  --color-transit-suinbundang: #f5a200; /* 수인분당 */
+  --color-transit-walk: #959aa0; /* 도보 */
+
+  /* 글자 스타일. 굵기는 font-* 클래스로 따로 지정 */
+  --text-title1: 22px; /* ui/Title1 */
+  --text-title1--line-height: 1.35;
+  --text-title1--letter-spacing: -0.02em;
+  --text-title2: 19px; /* ui/Title2 */
+  --text-title2--line-height: 1.4;
+  --text-title2--letter-spacing: -0.02em;
+  --text-title3: 17px; /* ui/Title3 */
+  --text-title3--line-height: 1.4;
+  --text-title3--letter-spacing: -0.02em;
+  --text-body2: 15px; /* ui/Body2 */
+  --text-body2--line-height: 1.5;
+  --text-body2--letter-spacing: -0.02em;
+  --text-body1: 16px; /* 버튼 L */
+  --text-body1--line-height: 1.5;
+  --text-body1--letter-spacing: -0.02em;
+  --text-label1: 14px; /* ui/Label1 */
+  --text-label1--line-height: 1.4;
+  --text-label1--letter-spacing: -0.02em;
+  --text-caption1: 12px; /* Level Pill */
+  --text-caption1--line-height: 1.4;
+  --text-caption1--letter-spacing: -0.02em;
+  --text-note: 13px; /* 피그마 ui/Caption1 (위의 caption1은 피그마 Caption2 크기) */
+  --text-note--line-height: 1.45;
+  --text-note--letter-spacing: -0.02em;
+  --text-micro: 11px; /* ui/Micro */
+  --text-micro--line-height: 1.3;
+  --text-micro--letter-spacing: -0.02em;
+  --text-display: 28px; /* ui/Display (이동 중 "4분 후"의 숫자) */
+  --text-display--line-height: 1.3;
+  --text-display--letter-spacing: -0.02em;
+
+  /* 실시간 숫자 강조 (피그마 live) */
+  --color-live: #e5383b;
+}
 
 @layer base {
   html,
@@ -8,6 +87,15 @@
   }
 
   body {
-    @apply bg-gray-100 text-gray-900 antialiased;
+    @apply text-text-primary bg-gray-100 antialiased;
+  }
+
+  /* 스크롤은 되지만 스크롤바는 보이지 않게 */
+  * {
+    scrollbar-width: none;
+  }
+
+  *::-webkit-scrollbar {
+    display: none;
   }
 }

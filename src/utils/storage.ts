@@ -36,10 +36,19 @@ export function getDeviceId() {
   if (saved) return saved
 
   // randomUUID는 HTTPS·localhost에서만 있음 (휴대폰에서 http로 접속하면 없음)
-  const id =
-    crypto.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+  // BE는 UUID 모양이 아니면 400을 줘서, 없을 때도 UUID 모양으로 만듦
+  const id = crypto.randomUUID?.() ?? fallbackUuid()
   write(KEYS.deviceId, id)
   return id
+}
+
+/** UUID v4 모양 문자열 (getRandomValues는 http에서도 동작) */
+function fallbackUuid() {
+  const bytes = crypto.getRandomValues(new Uint8Array(16))
+  bytes[6] = (bytes[6] & 0x0f) | 0x40
+  bytes[8] = (bytes[8] & 0x3f) | 0x80
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
 }
 
 export const storage = { read, write, KEYS }
