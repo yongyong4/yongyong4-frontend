@@ -45,16 +45,11 @@ export default function RoutesPage() {
   // 경로 탐색은 하루 한도가 있어서 같은 조건이면 캐시를 쓰고, 창을 다시 열어도 다시 부르지 않음
   const routesQuery = useQuery({
     queryKey: ['routes', 'search', origin.x, origin.y, destination?.x, destination?.y],
-    // 취소 신호(signal)를 일부러 넘기지 않음. 개발 서버(StrictMode)는 화면을 두 번 마운트하는데,
-    // 신호를 쓰면 첫 요청을 취소하고 다시 보내서 하루 30회 한도(ODsay)가 두 번 소모됨.
-    // 신호가 없으면 진행 중인 요청을 그대로 이어받아 한 번만 호출함
-    queryFn: () =>
-      searchRoutes({
-        startX: origin.x,
-        startY: origin.y,
-        endX: destination!.x,
-        endY: destination!.y,
-      }),
+    queryFn: ({ signal }) =>
+      searchRoutes(
+        { startX: origin.x, startY: origin.y, endX: destination!.x, endY: destination!.y },
+        signal,
+      ),
     enabled: !!destination && !tooClose,
     staleTime: 5 * 60_000,
     gcTime: 30 * 60_000,

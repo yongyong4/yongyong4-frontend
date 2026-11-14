@@ -18,20 +18,17 @@ import StrategySheet, { type StrategyOption, type StrategySheetData } from './St
 // 화면 전체를 덮는 fixed 레이어지만 시트·버튼·뒤로가기 밖은 클릭이 아래 화면(지도)으로 통과함
 
 type StrategyOverlayProps = StrategySheetData & {
+  /** 처음 선택돼 있을 전략 id. 없으면 맨 위 전략 */
+  defaultSelectedId?: string
   /** 시트를 내리거나, 손잡이·뒤로가기를 눌렀을 때 */
   onClose: () => void
-  /** "이 전략으로 출발". 눌러 둔 전략(없으면 [상세]로 펼쳐 본 전략)을 그대로 넘겨줌 */
+  /** "이 전략으로 출발". 고른 전략을 그대로 넘겨줌 */
   onConfirm: (strategy: StrategyOption) => void
   /**
-   * "상세". 선택한 전략의 요약 박스가 시트 위쪽에 나타나고, 그 전략의 카드는 목록에서 빠짐.
-   * 지도처럼 시트 밖을 바꿔야 하면 여기서 받은 전략(mapLabel 등)을 쓰면 됨
+   * "상세". 지금 선택된 전략 기준으로 시트 위쪽 요약이 바뀜 (strategy.summary).
+   * 지도 이름표처럼 시트 밖을 바꿔야 하면 여기서 받은 전략의 mapLabel 등을 쓰면 됨
    */
   onDetail?: (strategy: StrategyOption) => void
-  /**
-   * 지도가 보여줄 전략이 바뀔 때. 눌러 둔 카드가 있으면 그 전략, 없으면 [상세]로 펼친 전략,
-   * 둘 다 없으면(처음) null. 카드를 누르는 즉시 지도 경로가 그 전략으로 바뀌게 할 때 씀
-   */
-  onShownChange?: (id: string | null) => void
   /** 출발 요청을 보내는 중. 버튼을 잠가서 두 번 눌리지 않게 함 */
   confirming?: boolean
   /** 출발 요청이 실패했을 때 버튼 위에 보여줄 문구 */
@@ -44,29 +41,22 @@ const DISMISS_DISTANCE = 80
 const DISMISS_ANIMATION_MS = 200
 
 export default function StrategyOverlay({
+  defaultSelectedId,
   onClose,
   onConfirm,
   onDetail,
-  onShownChange,
   confirming = false,
   confirmError,
   ...sheetData
 }: StrategyOverlayProps) {
-  const { strategies } = sheetData
+  const { strategies, ...baseSummary } = sheetData
+  const [selectedId, setSelectedId] = useState(defaultSelectedId ?? strategies[0]?.id ?? '')
 
-  // 처음에는 아무 전략도 선택되지 않고, 위쪽 요약 박스도 없음.
-  // 카드를 누르면 selectedId, 그 상태에서 [상세]를 누르면 detailId가 되어 요약 박스가 나타나고 카드는 목록에서 빠짐
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  // [상세]를 누른 전략. 시트 위쪽 요약이 이 전략 기준으로 바뀜 (없으면 기본 요약)
   const [detailId, setDetailId] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const detail = strategies.find((option) => option.id === detailId) ?? null
-  const visibleStrategies = strategies.filter((option) => option.id !== detailId)
-
-  // [출발]은 눌러 둔 카드가 있으면 그 전략, 없으면 [상세]로 펼쳐 본 전략. 지도도 같은 전략을 보여줌
-  const startId = selectedId ?? detailId
-  useEffect(() => {
-    onShownChange?.(startId)
-  }, [startId, onShownChange])
+  const detailSummary = strategies.find((option) => option.id === detailId)?.summary
+  const summary = { ...baseSummary, ...detailSummary }
 
   // 손잡이를 잡고 내리는 동안 시트가 손가락을 따라 내려감
   const [dragY, setDragY] = useState(0)
@@ -114,16 +104,14 @@ export default function StrategyOverlay({
     const selected = strategies.find((option) => option.id === selectedId)
     if (!selected) return
     setDetailId(selected.id)
-    // 펼친 전략은 요약 박스로 올라가고 카드는 빠지므로, 선택 표시도 풀어 줌
-    setSelectedId(null)
-    // 요약이 시트 맨 위에 있어서, 나타난 걸 바로 볼 수 있게 맨 위로 올려줌
+    // 요약이 시트 맨 위에 있어서, 바뀐 걸 바로 볼 수 있게 맨 위로 올려줌
     scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
     onDetail?.(selected)
   }
 
   const confirm = () => {
-    const target = strategies.find((option) => option.id === startId)
-    if (target) onConfirm(target)
+    const selected = strategies.find((option) => option.id === selectedId)
+    if (selected) onConfirm(selected)
   }
 
   return (
@@ -172,8 +160,8 @@ export default function StrategyOverlay({
         {/* 아래 pb는 하단 버튼에 가려지지 않게 */}
         <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-5 pb-[120px]">
           <StrategySheet
-            summary={detail?.summary ?? null}
-            strategies={visibleStrategies}
+            {...summary}
+            strategies={strategies}
             selectedId={selectedId}
             onSelect={setSelectedId}
           />
@@ -192,16 +180,10 @@ export default function StrategyOverlay({
           </p>
         )}
         <div className="flex items-center gap-2">
-          {/* 카드를 하나 눌러야 [상세]·[출발]이 켜짐 (처음에는 아무것도 선택되지 않음) */}
-          <Button
-            variant="tertiary"
-            onClick={showDetail}
-            disabled={!selectedId}
-            className="w-[120px] shrink-0"
-          >
+          <Button variant="tertiary" onClick={showDetail} className="w-[120px] shrink-0">
             상세
           </Button>
-          <Button onClick={confirm} disabled={confirming || !startId} className="min-w-0 flex-1">
+          <Button onClick={confirm} disabled={confirming} className="min-w-0 flex-1">
             {confirming ? '출발하는 중' : '이 전략으로 출발'}
           </Button>
         </div>

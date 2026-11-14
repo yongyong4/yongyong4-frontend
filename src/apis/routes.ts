@@ -16,15 +16,6 @@ export type BusOption = {
   busType?: string
 }
 
-/** 구간이 지나는 정류장·역 (이름 + 좌표). 첫 항목은 구간 시작점, 마지막 항목은 구간 끝점과 같음 */
-export type PassStop = {
-  name: string
-  /** 경도 */
-  x: number
-  /** 위도 */
-  y: number
-}
-
 export type SegmentInfo = {
   segmentIndex: number
   mode: 'WALK' | 'BUS' | 'SUBWAY' | string
@@ -41,8 +32,6 @@ export type SegmentInfo = {
   /** 지하철 호선 이름 (예: "에버라인", "수인분당") */
   lineName: string | null
   busOptions: BusOption[]
-  /** 지나는 정류장 좌표 전체. 지도에서 정류장 사이를 직선이 아니라 실제 정류장을 따라 그릴 때 씀 */
-  passStops?: PassStop[] | null
 }
 
 export type RouteInfo = {
