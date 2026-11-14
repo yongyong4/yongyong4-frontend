@@ -46,10 +46,21 @@ export type Origin = {
   y: number
   /** true면 기기 위치, false면 기본 출발지(위치를 쓸 수 없을 때) */
   isCurrent: boolean
+  /** 위치는 얻었지만 서비스 지역 밖이라 동백역으로 대신한 경우 (안내 문구용) */
+  outOfService?: boolean
 }
 
 // 위치를 쓸 수 없을 때(권한 없음·거부·미지원) 쓰는 출발지. 시연 지역인 동백역
 export const DEFAULT_ORIGIN: Origin = { name: '동백역', x: 127.1459, y: 37.2699, isCurrent: false }
+
+// 실시간 분석은 용인 동백 일대 버스만 함. 이보다 멀면 실제 위치로 경로를 찾아도 "분석 불가"만 나와서,
+// 서비스 지역 밖이면 출발지를 동백역으로 바꿔 모든 화면이 제대로 보이게 함 (경로 계산 기준도 동백역)
+const SERVICE_RADIUS_M = 15_000
+
+/** 기기 위치가 서비스 지역(동백 일대) 안인지. 출발지와 지도의 내 위치가 같은 기준을 쓰게 함 */
+export function isInServiceArea(point: { x: number; y: number }): boolean {
+  return distanceMeters(point, DEFAULT_ORIGIN) <= SERVICE_RADIUS_M
+}
 
 let originPromise: Promise<Origin> | null = null
 let resolvedOrigin: Origin | null = null
@@ -67,14 +78,14 @@ async function resolveOrigin(): Promise<Origin> {
         maximumAge: 60_000,
       }),
     )
+    const here = { x: position.coords.longitude, y: position.coords.latitude }
+    // 서비스 지역에서 너무 멀면 동백역 기준으로 (실제 위치로는 분석할 버스가 없음)
+    if (!isInServiceArea(here)) {
+      return { ...DEFAULT_ORIGIN, outOfService: true }
+    }
     // 좌표는 경로 계산에만 쓰고 저장하지 않음 (NFR-09)
     // TODO: BE에 좌표 → 주소 변환 API가 생기면 "현재 위치 · 동백동"처럼 동네 이름을 붙이기
-    return {
-      name: '현재 위치',
-      x: position.coords.longitude,
-      y: position.coords.latitude,
-      isCurrent: true,
-    }
+    return { name: '현재 위치', x: here.x, y: here.y, isCurrent: true }
   } catch {
     return DEFAULT_ORIGIN
   }
