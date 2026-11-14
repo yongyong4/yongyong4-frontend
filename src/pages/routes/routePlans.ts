@@ -8,6 +8,7 @@ import type {
   SegmentInfo,
   SegmentView,
 } from '@/apis/routes'
+import { MESSAGES } from '@/constants/messages'
 import type { StageCode } from '@/types/api'
 import type { StageWithUnknown } from '@/types/stage'
 import type { TransitType } from '@/types/transit'
@@ -23,6 +24,24 @@ const stageOf = (code: StageCode | null) => toLabel(code ?? 'UNKNOWN')
 const MAX_ROUTES = 5
 /** 버스가 충분히 있을 때 분석이 안 되는 경로(지하철만 있는 경로 등)는 이만큼만 섞음 */
 const MIN_OTHER_ROUTES = 1
+
+/**
+ * 실시간 분석을 지원하는 경기버스인지 (노선 ID로 구분)
+ * GBIS(경기) 노선 ID는 2로 시작하는 9자리 (예: 228000431). 서울버스는 1로 시작해서 미지원
+ * TODO: 노선 ID 규칙은 BE와 한 번 더 확인
+ */
+export function isGyeonggiBus(segment: SegmentInfo) {
+  return segment.busOptions.some((o) => /^2\d{8}$/.test(o.localRouteId))
+}
+
+/** 분석이 안 되는 후보의 안내 문구 */
+function unavailableLabel(route: RouteInfo) {
+  const buses = route.segments.filter((s) => s.mode === 'BUS')
+  if (buses.length === 0) return MESSAGES.analysisNotBus
+  if (!buses.some(isGyeonggiBus)) return MESSAGES.analysisUnsupported
+  // 경기버스가 있는데도 분석 결과가 없음 (매칭 실패·도착정보 없음)
+  return MESSAGES.noLiveArrival
+}
 
 const hasBus = (route: RouteInfo) =>
   route.segments.some(
@@ -170,8 +189,8 @@ export function buildRoutePlans(
         badges,
         headline: '',
         level: '정보 없음',
-        // 분석 요청이 실패한 경우와 미지원 노선이 섞인 경우를 구분함
-        levelLabel: analysis ? '실시간 분석 미지원 노선 포함' : '실시간 정보 없음',
+        // 분석 요청 자체가 실패 / 지하철만 / 서울버스 등 미지원 노선만 / 경기버스인데 도착정보 없음
+        levelLabel: analysis ? unavailableLabel(route) : '실시간 정보 없음',
         items: [
           {
             kind: 'unavailable',
@@ -206,11 +225,10 @@ export function buildRoutePlans(
       )
     })
 
-    // 탈 버스 중 분석 결과가 없는 버스(서울 버스 등)가 하나라도 있으면 일부 구간만 분석된 경로
-    const busCount = route.segments.filter((s) => s.mode === 'BUS').length
-    const analyzedBusCount = route.segments.filter(
-      (s) => s.mode === 'BUS' && views.has(s.segmentIndex),
-    ).length
+    // 서울버스 등 미지원 노선이 섞였거나, 분석 결과가 없는 버스가 있으면 일부 구간만 분석된 경로
+    const buses = route.segments.filter((s) => s.mode === 'BUS')
+    const partial =
+      buses.some((s) => !isGyeonggiBus(s)) || buses.some((s) => !views.has(s.segmentIndex))
 
     const minutesToBus = minutesBetween(analysis.evaluatedAt, firstView.predictedBusArrivalAt)
     analyzed.push({
@@ -219,10 +237,15 @@ export function buildRoutePlans(
       plan: {
         id: `route-${route.routeIndex}`,
         badges,
-        headline:
-          minutesToBus === null ? '' : `${firstView.boardName ?? ''} · ${minutesToBus}분 후`,
+        // 경기버스인데 지금 도착정보가 없으면 "○○ · 현재 실시간 도착정보 없음"
+        headline: [
+          firstView.boardName,
+          minutesToBus === null ? MESSAGES.noLiveArrival : `${minutesToBus}분 후`,
+        ]
+          .filter(Boolean)
+          .join(' · '),
         level: stageOf(result.strategyRiskStage),
-        partial: analyzedBusCount < busCount,
+        partial,
         items,
         route,
       },

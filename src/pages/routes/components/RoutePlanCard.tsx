@@ -103,13 +103,15 @@ export default function RoutePlanCard({
         <p className="text-label1 text-text-secondary min-w-0 flex-1 font-medium">
           {plan.headline}
         </p>
-        {plan.partial && (
-          <span className="bg-surface-sunken text-micro text-text-secondary shrink-0 rounded px-1.5 py-0.5 font-medium whitespace-nowrap">
-            일부 구간 분석
-          </span>
-        )}
         <LevelPill level={plan.level} label={plan.levelLabel} />
       </div>
+
+      {/* 문구가 길어서 제목 줄이 아니라 바로 아래 줄에 표시 (피그마에 없는 안내) */}
+      {plan.partial && (
+        <p className="bg-surface-sunken text-caption1 text-text-secondary -mt-1.5 self-start rounded-md px-2 py-[3px] font-medium">
+          {MESSAGES.analysisPartial}
+        </p>
+      )}
 
       {plan.items.map((item, index) => (
         <Fragment key={index}>
