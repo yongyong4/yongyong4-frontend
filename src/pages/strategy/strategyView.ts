@@ -1,8 +1,11 @@
 // 전략 비교 응답을 화면(StrategyOverlay)이 받는 모양으로 바꾸는 함수
 // 화면 컴포넌트는 API 모양을 몰라도 되게, 변환은 전부 여기서 함
 
-import type { SegmentView } from '@/apis/routes'
+import type { RouteInfo, SegmentView } from '@/apis/routes'
 import type { StrategyResponse, StrategyView } from '@/apis/strategies'
+import type { MapLabel } from '@/components/map/base'
+import { geometryFromRoute, type RouteGeometry } from '@/components/map/geometry'
+import type { MapPoint } from '@/components/map/kakao'
 import type { MatchStatus, SegmentMode, StageCode } from '@/types/api'
 import type { CreateTripRequest } from '@/types/tripApi'
 import { toStageLabel as toLabel } from '@/utils/codeLabels'
@@ -213,4 +216,67 @@ export function buildCreateTripRequest(
     },
     alternativeRoutes: [],
   }
+}
+
+// ── 지도 ────────────────────────────────────────────────────────────
+
+/**
+ * 전략이 어떤 후보 경로를 타는지 찾음.
+ * 전략 응답의 구간에는 좌표가 없어서, 좌표가 있는 후보 경로(경로 탐색 응답)와 정류장 ID·이름·노선으로 맞춰봄
+ */
+function matchRoute(strategy: StrategyView, candidates: RouteInfo[]): RouteInfo | null {
+  const legs = strategy.route.segments.filter((s) => s.mode !== 'WALK')
+  let best: RouteInfo | null = null
+  let bestScore = 0
+  for (const route of candidates) {
+    const segs = route.segments.filter((s) => s.mode !== 'WALK')
+    let score = 0
+    for (const leg of legs) {
+      const hit = segs.find(
+        (s) =>
+          s.mode === leg.mode &&
+          ((!!leg.boardStationId && s.startLocalStationId === leg.boardStationId) ||
+            (!!leg.alightStationId && s.endLocalStationId === leg.alightStationId) ||
+            (!!leg.boardName && s.startName === leg.boardName) ||
+            (!!leg.alightName && s.endName === leg.alightName)),
+      )
+      if (!hit) continue
+      score += 1
+      if (leg.routeLabel && hit.busOptions.some((o) => o.busNo === leg.routeLabel)) score += 1
+    }
+    if (score > bestScore) {
+      best = route
+      bestScore = score
+    }
+  }
+  return best
+}
+
+/** 전략 하나를 지도 모양으로. origin을 빼면 정류장 좌표만 담김 (이동 중 화면 저장용) */
+export function strategyGeometry(
+  strategy: StrategyView,
+  selectedRoute: RouteInfo,
+  alternatives: RouteInfo[],
+  destination: { x: number; y: number; name: string },
+  origin?: MapPoint,
+): RouteGeometry {
+  const route = matchRoute(strategy, [selectedRoute, ...alternatives]) ?? selectedRoute
+  const moveTo =
+    strategy.strategyType === 'BACKTRACK' &&
+    strategy.moveToName &&
+    strategy.moveToX !== null &&
+    strategy.moveToY !== null
+      ? { x: strategy.moveToX, y: strategy.moveToY, name: strategy.moveToName }
+      : undefined
+  return geometryFromRoute(route, { origin, destination, moveTo })
+}
+
+/** 지도 이름표: 타는 정류장 이름, 옮겨 타면 그 정류장에 전략 이름표 */
+export function strategyMapLabels(geometry: RouteGeometry, selectedMapLabel: string): MapLabel[] {
+  const labels: MapLabel[] = []
+  const moveTo = geometry.stops.find((s) => s.kind === 'moveTo')
+  const board = geometry.stops.find((s) => s.kind === 'board')
+  if (moveTo) labels.push({ point: moveTo, text: selectedMapLabel || moveTo.name, tone: 'brand' })
+  if (board) labels.push({ point: board, text: board.name })
+  return labels
 }

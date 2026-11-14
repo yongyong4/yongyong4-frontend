@@ -43,9 +43,12 @@ export default function TripSheet({
       : '2분마다 갱신')
 
   return (
-    // 환승이 많으면 내용이 길어짐 → 시트는 상단바 아래까지만 커지고 안쪽에서 스크롤, 버튼은 항상 아래에 보임
+    // 환승이 많아 내용이 길어져도 지도는 위쪽 313px(전략 비교 시트와 같은 위치)까지 항상 보이게 함.
+    // 시트는 그보다 커지지 않고 안쪽에서 스크롤되며, 버튼은 항상 아래에 보임.
+    // 내용이 짧으면 시트도 짧아져서 지도가 더 크게 보임
+    // max-h: 화면 높이 - 313px + 6px(bottom이 -6px라서 그만큼 더 내려가 있음)
     // z-20: 지도 위 마커·이름표보다 위
-    <section className="shadow-elevation-2 absolute inset-x-0 bottom-[-6px] z-20 flex max-h-[calc(100%-104px)] flex-col items-center rounded-t-3xl bg-white pt-2.5 pb-[42px]">
+    <section className="shadow-elevation-2 absolute inset-x-0 bottom-[-6px] z-20 flex max-h-[calc(100%-307px)] flex-col items-center rounded-t-3xl bg-white pt-2.5 pb-[42px]">
       <div aria-hidden="true" className="bg-line-strong h-1 w-9 shrink-0 rounded-xs" />
 
       <div className="flex min-h-0 w-full flex-1 flex-col items-center overflow-y-auto overscroll-contain px-5">

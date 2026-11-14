@@ -1,69 +1,46 @@
-import routeLine from '@/assets/trip/route-line.svg'
-import routeLineOutline from '@/assets/trip/route-line-outline.svg'
-import routeLineUp from '@/assets/trip/route-line-up.svg'
-import routeWalk from '@/assets/trip/route-walk.svg'
-import MapBase from '@/components/map/base'
+import MapBase, { type MapLabel } from '@/components/map/base'
+import { boardingFocus, type RouteGeometry } from '@/components/map/geometry'
+import { useMyLocation } from '@/components/map/kakao'
 
 type TripMapProps = {
-  /** 내 위치 옆 이름표 (예: "동백2차 정류장", "내 위치") */
+  /** 내 위치 옆 이름표 (예: "동백2차 정류장", "동백2차 · 내 위치", "내 위치") */
   label: string
-  /** 이름표 왼쪽 위치(px). 피그마: 정류장 이름표 138, "내 위치"만 있을 때 161 */
-  labelLeft?: number
-  /** 정류장까지 걷는 중이면 도보 점선을 그림 */
-  showWalkPath: boolean
+  /** 출발할 때 저장해 둔 정류장 좌표. 경로가 바뀌었거나 다른 기기면 없음 */
+  geometry: RouteGeometry | null
+  /** 탑승 중이면 경로 전체를, 정류장으로 가는 중·대기 중이면 정류장 주변을 크게 보여줌 */
+  riding: boolean
 }
 
-/** 피그마에서 지도는 화면보다 60px 위로 올라가 있음 */
-const MAP_OFFSET_Y = -60
+/** 상단바 아래 */
+const VISIBLE_TOP = 110
+/** 시트가 가장 커졌을 때의 위쪽 (TripSheet: 화면 위에서 313px 아래부터) */
+const SHEET_TOP = 313
 
-/** 내 위치 (화면 기준 x 120, y 230 → 지도 기준으로 바꿔서 넘김) */
-const MY_LOCATION = { x: 120, y: 230 - MAP_OFFSET_Y }
-
-// 이동 중 화면 뒤의 지도 (피그마 S-05)
-// 지도 바탕·지명·역 마커·내 위치는 공통 지도(components/map/base)를 쓰고,
-// 이동 중 화면에만 있는 경로선과 이름표만 여기서 얹음
-// TODO: 지도 SDK를 붙이기 전까지 쓰는 임시 지도. 마커 위치도 피그마 위치 그대로 고정
+// 이동 중 화면 뒤의 카카오맵 (피그마 S-05)
+// - 정류장·경로선: 출발할 때 저장한 좌표 (이동 중 응답에는 좌표가 없음)
+// - 내 위치: 위치 권한이 허용돼 있으면 실시간으로 따라감 (저장하지 않음)
 // 버스 현재 위치 마커는 BE와 협의해 MVP에서 뺐음 (도착·좌석 정보는 바텀시트에서 보여줌)
-export default function TripMap({ label, labelLeft = 138, showWalkPath }: TripMapProps) {
+export default function TripMap({ label, geometry, riding }: TripMapProps) {
+  const myLocation = useMyLocation()
+
+  // 이름표 자리: 정류장 이름이 들어 있으면 그 정류장 옆, 아니면 내 위치 옆
+  const stopName = label.replace(/ 정류장$/, '').replace(/ · 내 위치$/, '')
+  const stop = geometry?.stops.find(
+    (s) => s.name && (s.name === stopName || s.name.includes(stopName)),
+  )
+  const point = label.endsWith('내 위치') && myLocation ? myLocation : (stop ?? myLocation)
+  const labels: MapLabel[] = point ? [{ point, text: label, tone: 'brand' }] : []
+
   return (
-    <div aria-hidden="true" className="absolute inset-0 isolate overflow-hidden bg-[#f6f5f1]">
-      <div className="absolute left-0" style={{ top: MAP_OFFSET_Y }}>
-        <MapBase currentLocation={MY_LOCATION} />
-      </div>
-
-      {/* 경로 오버레이 (피그마 "경로 오버레이" 390×460) */}
-      <div className="absolute inset-x-0 top-0 h-[460px] overflow-hidden">
-        <div className="absolute inset-[-2.17%_-2.56%_41.3%_30.77%]">
-          <div className="absolute inset-[0_0_-1.96%_-1.96%]">
-            <img alt="" src={routeLineOutline} className="block size-full max-w-none" />
-          </div>
-        </div>
-        <div className="absolute inset-[-2.17%_-2.56%_41.3%_30.77%]">
-          <div className="absolute inset-[0_0_-1.07%_-1.07%]">
-            <img alt="" src={routeLine} className="block size-full max-w-none" />
-          </div>
-        </div>
-        <div className="absolute inset-[-2.17%_69.23%_67.39%_30.77%]">
-          <div className="absolute inset-[0_-3px]">
-            <img alt="" src={routeLineUp} className="block size-full max-w-none" />
-          </div>
-        </div>
-        {showWalkPath && (
-          <div className="absolute inset-[50.43%_55.13%_28.26%_32.31%]">
-            <div className="absolute inset-[-2.04%_-4.08%]">
-              <img alt="" src={routeWalk} className="block size-full max-w-none" />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 내 위치 이름표 */}
-      <div
-        style={{ left: labelLeft }}
-        className="shadow-elevation-1 text-caption1 text-brand-strong absolute top-[218px] z-10 rounded-lg bg-white px-2 py-1 font-medium whitespace-nowrap"
-      >
-        {label}
-      </div>
+    <div className="absolute inset-0 isolate overflow-hidden">
+      <MapBase
+        geometry={geometry}
+        myLocation={myLocation}
+        labels={labels}
+        focus={riding ? null : boardingFocus(geometry, [myLocation])}
+        visibleTop={VISIBLE_TOP}
+        visibleBottom={SHEET_TOP}
+      />
     </div>
   )
 }
