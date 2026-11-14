@@ -18,6 +18,7 @@ import { useNavigate } from 'react-router'
 
 import { endTrip } from '@/apis/trip'
 import { readTripGeometry, transitLines } from '@/components/map/geometry'
+import { useMyLocation } from '@/components/map/kakao'
 import BoardingFailedPopup from '@/components/popups/BoardingFailedPopup'
 import EndTripPopup from '@/components/popups/EndTripPopup'
 import RouteChangePopup from '@/components/popups/RouteChangePopup'
@@ -48,7 +49,8 @@ export default function TripPage() {
   const navigate = useNavigate()
   const now = useNow()
 
-  const session = useTripSession()
+  const myLocation = useMyLocation()
+  const session = useTripSession(myLocation)
   const { activeQuery, trip, evaluation } = session
 
   const [manualPopup, setManualPopup] = useState<ManualPopup>(initialManualPopup)
