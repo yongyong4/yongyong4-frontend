@@ -17,8 +17,6 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 
 import { endTrip } from '@/apis/trip'
-import { readTripGeometry, transitLines } from '@/components/map/geometry'
-import { useMyLocation } from '@/components/map/kakao'
 import BoardingFailedPopup from '@/components/popups/BoardingFailedPopup'
 import EndTripPopup from '@/components/popups/EndTripPopup'
 import RouteChangePopup from '@/components/popups/RouteChangePopup'
@@ -49,8 +47,7 @@ export default function TripPage() {
   const navigate = useNavigate()
   const now = useNow()
 
-  const myLocation = useMyLocation()
-  const session = useTripSession(myLocation)
+  const session = useTripSession()
   const { activeQuery, trip, evaluation } = session
 
   const [manualPopup, setManualPopup] = useState<ManualPopup>(initialManualPopup)
@@ -127,23 +124,14 @@ export default function TripPage() {
     }
   }
 
-  const transitSegments = trip.currentRoute.segments.filter((s) => s.mode !== 'WALK')
   const stopLabel = view.mapLabel.replace(/ 정류장$/, '').replace(/ · 내 위치$/, '')
 
   return (
-    // 지도+시트 전체 화면. 폰 화면(브라우저 주소창 빼고)에 딱 맞춰서 버튼이 화면 밖으로 밀리지 않게 함
-    // (레이아웃 기준 최소 844px를 쓰면 화면이 짧은 폰에서 시트 아래 버튼이 안 보였음)
-    <main className="fixed inset-y-0 left-1/2 w-[390px] -translate-x-1/2 overflow-hidden">
+    <main className="relative h-dvh min-h-[844px] overflow-hidden">
       <TripMap
         label={view.mapLabel}
-        phase={view.phase}
-        transitIndex={transitSegments.findIndex((s) => s.segmentId === view.currentSegmentId)}
-        transitMode={
-          transitSegments.find((s) => s.segmentId === view.currentSegmentId)?.mode === 'SUBWAY'
-            ? 'subway'
-            : 'bus'
-        }
-        geometry={readTripGeometry(trip.tripId, transitLines(trip.currentRoute.segments))}
+        labelLeft={view.phase === 'riding' ? 161 : 138}
+        showWalkPath={view.phase === 'walking'}
       />
       <TripTopBar
         statusLabel={view.statusLabel}

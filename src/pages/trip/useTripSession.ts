@@ -21,16 +21,11 @@ import type {
   TriggerType,
   TripStatusCode,
 } from '@/types/tripApi'
-import type { MapPoint } from '@/components/map/kakao'
 import { formatTime } from '@/utils/time'
 
 export const ACTIVE_TRIP_QUERY_KEY = ['trip', 'active'] as const
 
-/**
- * myLocation: 폰 GPS 위치 (x = 경도, y = 위도). 있으면 재평가 때 보내서 정류장까지 남은 보행시간에 반영
- * (기능명세서 F-05-02, 좌표는 BE가 저장하지 않음). 위치 권한이 없거나 서비스 지역 밖이면 null
- */
-export function useTripSession(myLocation: MapPoint | null = null) {
+export function useTripSession() {
   const queryClient = useQueryClient()
   const activeQuery = useQuery({ queryKey: ACTIVE_TRIP_QUERY_KEY, queryFn: getActiveTrip })
   const tripId = activeQuery.data?.trip?.tripId ?? null
@@ -42,20 +37,12 @@ export function useTripSession(myLocation: MapPoint | null = null) {
   const [toast, setToast] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-  // 위치는 자주 바뀌니 재평가 함수를 다시 만들지 않고 ref로 최신 값만 읽음
-  const positionRef = useRef(myLocation)
-  useEffect(() => {
-    positionRef.current = myLocation
-  }, [myLocation])
-
   const reevaluate = useCallback(
     async (triggerType: TriggerType, { showToast = false } = {}) => {
       if (tripId === null) return null
       try {
-        const result = await reevaluateTrip(tripId, {
-          triggerType,
-          currentPosition: positionRef.current,
-        })
+        // TODO: 위치 권한이 있으면 currentPosition에 현재 좌표 넣기 (F-05-07, 좌표는 저장 안 함)
+        const result = await reevaluateTrip(tripId, { triggerType, currentPosition: null })
         setEvaluation(result)
         setStatusOverride(null)
         setErrorMessage(null)
