@@ -134,8 +134,11 @@ function lineItem(segment: SegmentInfo): PlanItem {
 
 /**
  * 후보 경로 → 카드 목록.
- * analysis가 없으면(분석 요청 실패) 모든 후보를 "분석 불가"로 보여줌.
- * 순서: 추천 1개 → 나머지 분석되는 경로 → 분석 불가
+ * 실시간 분석은 GBIS 기반 경기버스만 지원해서, 서울 버스 등이 섞인 경로는 분석이 제한됨.
+ *  - 탈 버스가 하나도 분석되지 않으면: "실시간 분석 미지원 노선 포함"으로 표시 (경로 정보만 보여줌)
+ *  - 일부 버스만 분석되면: 분석된 값을 보여주고 "일부 구간 분석" 표시를 붙임
+ * analysis가 없으면(분석 요청 자체가 실패) 모든 후보를 "실시간 정보 없음"으로 보여줌.
+ * 순서: 추천 1개 → 나머지 분석되는 경로 → 분석 안 되는 경로
  */
 export function buildRoutePlans(
   routes: RouteInfo[],
@@ -167,7 +170,8 @@ export function buildRoutePlans(
         badges,
         headline: '',
         level: '정보 없음',
-        levelLabel: '분석 불가',
+        // 분석 요청이 실패한 경우와 미지원 노선이 섞인 경우를 구분함
+        levelLabel: analysis ? '실시간 분석 미지원 노선 포함' : '실시간 정보 없음',
         items: [
           {
             kind: 'unavailable',
@@ -202,6 +206,12 @@ export function buildRoutePlans(
       )
     })
 
+    // 탈 버스 중 분석 결과가 없는 버스(서울 버스 등)가 하나라도 있으면 일부 구간만 분석된 경로
+    const busCount = route.segments.filter((s) => s.mode === 'BUS').length
+    const analyzedBusCount = route.segments.filter(
+      (s) => s.mode === 'BUS' && views.has(s.segmentIndex),
+    ).length
+
     const minutesToBus = minutesBetween(analysis.evaluatedAt, firstView.predictedBusArrivalAt)
     analyzed.push({
       rank: STAGE_RANK[result.strategyRiskStage ?? 'UNKNOWN'],
@@ -212,6 +222,7 @@ export function buildRoutePlans(
         headline:
           minutesToBus === null ? '' : `${firstView.boardName ?? ''} · ${minutesToBus}분 후`,
         level: stageOf(result.strategyRiskStage),
+        partial: analyzedBusCount < busCount,
         items,
         route,
       },

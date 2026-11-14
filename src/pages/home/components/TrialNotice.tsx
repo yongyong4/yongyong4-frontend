@@ -1,9 +1,14 @@
-// 시범 운영 지역 안내
-export default function TrialNotice() {
+// 시범 운영 지역 안내.
+// 위치가 서비스 지역 밖이라 출발지를 동백역으로 바꾼 경우에는 그 이유를 알려줌
+export default function TrialNotice({ outOfService = false }: { outOfService?: boolean }) {
   return (
     <aside className="bg-brand-weak text-brand-strong text-note mt-4 flex items-center gap-2 rounded-xl px-3.5 py-2.5">
       <InfoIcon />
-      <p className="min-w-0 flex-1">지금은 용인 동백 지역에서 시범 운영 중이에요</p>
+      <p className="min-w-0 flex-1">
+        {outOfService
+          ? '지금은 용인 동백 지역에서만 이용할 수 있어서 출발지를 동백역으로 보여드려요'
+          : '지금은 용인 동백 지역에서 시범 운영 중이에요'}
+      </p>
     </aside>
   )
 }

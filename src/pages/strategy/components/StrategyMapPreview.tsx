@@ -1,74 +1,46 @@
-import MapBase from '@/components/map/base'
+import MapBase, { type MapLabel } from '@/components/map/base'
+import { boardingFocus, type RouteGeometry } from '@/components/map/geometry'
+import type { MapPoint } from '@/components/map/kakao'
+import { useWalkingPaths } from '@/components/map/useWalkingPaths'
 
 type StrategyMapPreviewProps = {
-  /** 앞 정류장 이름표 (예: "앞 정류장 · 동백 쥬네브"). 선택한 전략에 따라 바뀜 */
-  stopLabel: string
-  /** 출발지 이름표 (예: "동백2차") */
-  originLabel: string
+  /** 고른(또는 [상세]를 누른) 전략의 경로 */
+  geometry: RouteGeometry | null
+  labels: MapLabel[]
+  /** 기기 현재 위치일 때만 내 위치 점을 찍음 */
+  myLocation: MapPoint | null
+  /** 출발 위치 (동백역 또는 현재 위치). 타는 정류장과 함께 지도가 맞춰질 범위에 들어감 */
+  origin: MapPoint
 }
 
-// 전략 화면 뒤에 비치는 지도 + 경로 (피그마 S-03).
-// TODO: 지도 SDK 연동 전 임시. 지도는 components/map의 고정 이미지를 쓰고,
-// 경로선·마커·이름표는 피그마 좌표 그대로 얹어 둠.
-// 실제 이동 중 화면에서는 이동 중 페이지의 지도가 이 자리에 보임
-export default function StrategyMapPreview({ stopLabel, originLabel }: StrategyMapPreviewProps) {
+/** 시트가 시작되는 위치 (StrategyOverlay의 top-[313px]) */
+const SHEET_TOP = 313
+/** 뒤로가기 버튼과 위쪽 흐림 아래 */
+const VISIBLE_TOP = 110
+
+// 전략 화면 뒤에 비치는 카카오맵 (피그마 S-03).
+// 시트에 가려지지 않는 위쪽(110~313px) 안에 경로가 다 보이게 맞춤.
+// 지도는 시트 밖 영역에서 손가락으로 움직일 수 있음
+export default function StrategyMapPreview({
+  geometry,
+  labels,
+  myLocation,
+  origin,
+}: StrategyMapPreviewProps) {
+  // 걷는 구간은 직선 대신 실제 도보 경로로 (받아오는 동안은 직선)
+  const drawn = useWalkingPaths(geometry)
+
   return (
-    <div aria-hidden="true" className="absolute inset-0 overflow-hidden bg-[#f6f5f1]">
-      {/* 피그마에서 지도는 화면보다 170px 위로 올라가 있음 */}
-      <div className="absolute top-[-170px] left-0">
-        <MapBase />
-      </div>
-
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="390"
-        height="320"
-        viewBox="0 0 390 320"
-        fill="none"
-        className="absolute top-0 left-0"
-      >
-        {/* 버스 노선: 흰 외곽선 위에 노란선 */}
-        <path d="M120 -10V190H400" stroke="white" strokeWidth="11" strokeLinejoin="round" />
-        <path d="M120 -10V190H400" stroke="#F2A900" strokeWidth="6" strokeLinejoin="round" />
-
-        {/* 출발지에서 걸어서 가는 회색 점선 */}
-        <path
-          d="M54.0003 88.0003C53.9137 87.8657 53.8271 87.7309 53.7405 87.5959M2.00029 2.00029C2.08277 2.1358 2.16547 2.27173 2.24837 2.40807M5.74595 8.19782C5.91164 8.47363 6.07798 8.75071 6.24496 9.02903M9.71342 14.8321C9.87831 15.1089 10.0437 15.3866 10.2096 15.6653M13.6658 21.4823C13.8291 21.7577 13.9928 22.0338 14.157 22.3106M17.606 28.1311C17.7704 28.4086 17.9351 28.6867 18.1001 28.9653M21.5487 34.7861C21.7123 35.0621 21.8761 35.3384 22.0402 35.6151M25.4936 41.4326C25.6581 41.7093 25.8228 41.9863 25.9876 42.2635M29.4509 48.0755C29.6162 48.3522 29.7816 48.6291 29.9471 48.906M33.4243 54.7087C33.5902 54.9847 33.7562 55.2607 33.9222 55.5367M37.4189 61.3286C37.5859 61.6041 37.7529 61.8796 37.92 62.1549M41.4407 67.932C41.6088 68.2066 41.7769 68.4809 41.945 68.7549M45.4953 74.5132C45.6656 74.7879 45.8359 75.0623 46.0061 75.3363M49.5937 81.0726C49.7655 81.3454 49.9373 81.6178 50.1088 81.8896"
-          stroke="#8B95A1"
-          strokeWidth="4"
-          strokeLinecap="round"
-          transform="translate(124 150)"
-        />
-
-        {/* 앞 정류장으로 이어지는 초록 점선 */}
-        <path
-          d="M52.2504 148.25C52.2797 148.084 52.3088 147.918 52.3376 147.752M2.2504 2.2504C2.39409 2.33123 2.53775 2.4129 2.68136 2.49542M9.35482 6.9604C9.62004 7.1632 9.8849 7.3688 10.1494 7.57718M16.1891 12.8841C16.431 13.1193 16.6724 13.3568 16.9134 13.5966M22.3544 19.5107C22.5691 19.7647 22.7834 20.0205 22.997 20.2782M27.896 26.6625C28.088 26.9323 28.2793 27.2036 28.4699 27.4765M32.8579 34.2234C33.0299 34.5074 33.2012 34.7928 33.3718 35.0795M37.2741 42.1116C37.4281 42.4094 37.5814 42.7084 37.7338 43.0085M41.1712 50.2693C41.3067 50.577 41.4414 50.8857 41.5753 51.1955M44.5676 58.6518C44.6842 58.9656 44.7999 59.2803 44.9148 59.5959M47.4758 67.2227C47.5739 67.5412 47.6712 67.8604 47.7677 68.1804M49.8998 75.9366C49.9811 76.2632 50.0615 76.5906 50.1411 76.9186M51.8466 84.7664C51.9099 85.0951 51.9723 85.4245 52.0338 85.7544M53.322 93.6994C53.3675 94.0293 53.4122 94.3596 53.4559 94.6905M54.3237 102.681C54.3521 103.015 54.3797 103.35 54.4063 103.685M54.857 111.716C54.868 112.05 54.8781 112.383 54.8872 112.717M54.9219 120.756C54.9157 121.092 54.9085 121.427 54.9003 121.764M54.521 129.8C54.4977 130.132 54.4734 130.465 54.4482 130.798M53.6588 138.796C53.6184 139.129 53.5769 139.462 53.5345 139.795"
-          stroke="#4CB282"
-          strokeWidth="4.5"
-          strokeLinecap="round"
-          transform="translate(125.75 89.75)"
-        />
-
-        {/* 출발지(빨간 원) */}
-        <circle cx="120" cy="150" r="9" fill="white" stroke="#E60012" strokeWidth="3" />
-
-        {/* 앞 정류장(초록 원) */}
-        <circle cx="120" cy="90" r="10" fill="#4CB282" stroke="white" strokeWidth="3" />
-
-        {/* 내 위치 */}
-        <circle cx="178" cy="238" r="16" fill="#4CB282" fillOpacity="0.15" />
-        <circle cx="178" cy="238" r="8" fill="#4CB282" stroke="white" strokeWidth="3" />
-      </svg>
-
-      {stopLabel && (
-        <p className="bg-surface-default text-caption1 text-brand-strong shadow-elevation-1 absolute top-[93px] left-[140px] rounded-lg px-2 py-1 font-medium whitespace-nowrap">
-          {stopLabel}
-        </p>
-      )}
-      <p className="bg-surface-default text-caption1 text-text-primary shadow-elevation-1 absolute top-[171px] left-[137px] rounded-lg px-2 py-1 font-medium whitespace-nowrap">
-        {originLabel}
-      </p>
-
+    <div className="absolute inset-0 overflow-hidden">
+      <MapBase
+        geometry={drawn}
+        labels={labels}
+        myLocation={myLocation}
+        // 정류장 선택 화면이라 경로 전체(동백 → 강남)가 아니라 출발 위치와 타는 정류장 주변을 보여줌
+        focus={boardingFocus(geometry, [origin])}
+        visibleTop={VISIBLE_TOP}
+        visibleBottom={SHEET_TOP}
+      />
       {/* 위쪽 흐림 처리는 StrategyOverlay에 있음 (이동 중 화면 위에서도 같이 보이게) */}
     </div>
   )

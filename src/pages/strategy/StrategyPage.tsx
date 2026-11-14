@@ -14,9 +14,10 @@ import { Navigate, useLocation, useNavigate } from 'react-router'
 
 import { ApiError } from '@/apis/client'
 import { peekOrigin, type Origin } from '@/apis/places'
-import { toRouteInput } from '@/apis/routes'
+import { toRouteInput, type RouteInfo } from '@/apis/routes'
 import { fetchStrategies, type StrategyView } from '@/apis/strategies'
 import { createTrip } from '@/apis/trip'
+import { geometryFromRoute, saveTripGeometry, transitLines } from '@/components/map/geometry'
 import { MESSAGES } from '@/constants/messages'
 import type { PlaceResult } from '@/pages/place-search/components/PlaceResultItem'
 import type { RoutePlan } from '@/pages/routes/components/RoutePlanCard'
@@ -26,7 +27,12 @@ import { PATHS } from '@/routes/paths'
 import StrategyMapPreview from './components/StrategyMapPreview'
 import StrategyOverlay, { BackIcon } from './components/StrategyOverlay'
 import type { StrategyOption } from './components/StrategySheet'
-import { buildCreateTripRequest, buildStrategyUi } from './strategyView'
+import {
+  buildCreateTripRequest,
+  buildStrategyUi,
+  strategyGeometry,
+  strategyMapLabels,
+} from './strategyView'
 
 /** 대체 노선을 찾는 데 같이 보내는 다른 후보 최대 개수 */
 const MAX_ALTERNATIVES = 4
@@ -54,6 +60,7 @@ export default function StrategyPage() {
     () => (state?.alternatives ?? []).slice(0, MAX_ALTERNATIVES),
     [state?.alternatives],
   )
+  const alternativeRoutes = useMemo(() => alternatives.map((p) => p.route), [alternatives])
 
   const strategiesQuery = useQuery({
     queryKey: [
@@ -92,7 +99,16 @@ export default function StrategyPage() {
       createTrip(
         buildCreateTripRequest(variables.strategy, variables.routeIndex, variables.destName),
       ),
-    onSuccess: () => {
+    onSuccess: (created, { strategy }) => {
+      // 이동 중 화면 지도에 쓸 정류장 좌표를 기기에 저장 (이동 중 응답에는 좌표가 없음).
+      // 출발 위치(사용자 위치)는 넣지 않음
+      if (plan && destination) {
+        saveTripGeometry(
+          created.tripId,
+          transitLines(strategy.route.segments),
+          strategyGeometry(strategy, plan.route, alternativeRoutes, destination),
+        )
+      }
       // 이동 중 화면이 예전의 "진행 중인 이동 없음" 기록을 보고 홈으로 돌아가지 않게 비워둠
       queryClient.removeQueries({ queryKey: ACTIVE_TRIP_QUERY_KEY })
       // replace로 갈아끼워서 이동 중 화면에서 뒤로가기를 눌러도 이 화면이 다시 열리지 않음
@@ -123,6 +139,10 @@ export default function StrategyPage() {
     <div className="bg-surface-default relative min-h-[844px]">
       <StrategyOverlayWithMap
         ui={ui}
+        route={plan.route}
+        alternativeRoutes={alternativeRoutes}
+        origin={origin}
+        destination={destination}
         loading={strategiesQuery.isPending}
         failed={strategiesQuery.isError}
         onRetry={() => void strategiesQuery.refetch()}
@@ -130,7 +150,6 @@ export default function StrategyPage() {
         onConfirm={confirm}
         confirming={startTrip.isPending}
         confirmError={confirmError}
-        fallbackOriginLabel={plan.headline.split(' · ')[0]}
       />
     </div>
   )
@@ -138,6 +157,11 @@ export default function StrategyPage() {
 
 type OverlayWithMapProps = {
   ui: ReturnType<typeof buildStrategyUi> | null
+  /** 고른 후보 경로 (좌표가 있는 경로 탐색 응답) */
+  route: RouteInfo
+  alternativeRoutes: RouteInfo[]
+  origin: Origin
+  destination: PlaceResult
   loading: boolean
   failed: boolean
   onRetry: () => void
@@ -145,12 +169,15 @@ type OverlayWithMapProps = {
   onConfirm: (option: StrategyOption) => void
   confirming: boolean
   confirmError?: string
-  fallbackOriginLabel: string
 }
 
-// 지도 + 전략 시트. 시트에서 [상세]를 누른 전략에 맞게 지도 이름표도 바뀜
+// 지도 + 전략 시트. 시트에서 [상세]를 누른 전략에 맞게 지도 경로·이름표도 바뀜
 function StrategyOverlayWithMap({
   ui,
+  route,
+  alternativeRoutes,
+  origin,
+  destination,
   loading,
   failed,
   onRetry,
@@ -158,14 +185,23 @@ function StrategyOverlayWithMap({
   onConfirm,
   confirming,
   confirmError,
-  fallbackOriginLabel,
 }: OverlayWithMapProps) {
-  const [detailId, setDetailId] = useState<string | null>(null)
+  // 지도가 보여줄 전략 id. 카드를 누르면 그 전략, [상세] 후에는 펼친 전략, 처음에는 없음(지금 고른 경로)
+  const [shownId, setShownId] = useState<string | null>(null)
+  // 위치를 못 써서 기본 출발지(동백역)를 쓰는 경우에는 내 위치 점을 찍지 않음
+  const myLocation = origin.isCurrent ? origin : null
 
   if (!ui) {
+    // 전략을 불러오는 동안에도 고른 후보 경로는 보여줌
+    const geometry = geometryFromRoute(route, { origin, destination })
     return (
       <>
-        <StrategyMapPreview stopLabel="" originLabel={fallbackOriginLabel} />
+        <StrategyMapPreview
+          geometry={geometry}
+          labels={strategyMapLabels(geometry, '')}
+          myLocation={myLocation}
+          origin={origin}
+        />
         <StatusSheet onClose={onClose}>
           {loading ? (
             <p className="text-label1 text-text-secondary">전략을 분석하고 있어요</p>
@@ -188,22 +224,26 @@ function StrategyOverlayWithMap({
     )
   }
 
-  const originLabel = ui.originLabel || fallbackOriginLabel
-  const selectedLabel =
-    ui.options.find((o) => o.id === (detailId ?? ui.defaultSelectedId))?.mapLabel ?? ''
-  // 그대로 타기는 지금 정류장과 같은 이름이라 이름표를 한 번만 보여줌
-  const stopLabel = selectedLabel === originLabel ? '' : selectedLabel
+  // 지도에는 처음에는 지금 고른 경로를 그리고, 전략 카드를 누르면 그 전략의 경로로 바뀜
+  const shown = shownId ? ui.views.get(shownId) : undefined
+  const option = ui.options.find((o) => o.id === shownId)
+  const geometry = shown
+    ? strategyGeometry(shown, route, alternativeRoutes, destination, origin)
+    : geometryFromRoute(route, { origin, destination })
 
   return (
     <>
-      <StrategyMapPreview stopLabel={stopLabel} originLabel={originLabel} />
+      <StrategyMapPreview
+        geometry={geometry}
+        labels={strategyMapLabels(geometry, option?.mapLabel ?? '')}
+        myLocation={myLocation}
+        origin={origin}
+      />
       <StrategyOverlay
-        {...ui.summary}
         strategies={ui.options}
-        defaultSelectedId={ui.defaultSelectedId}
         onClose={onClose}
         onConfirm={onConfirm}
-        onDetail={(strategy) => setDetailId(strategy.id)}
+        onShownChange={setShownId}
         confirming={confirming}
         confirmError={confirmError}
       />

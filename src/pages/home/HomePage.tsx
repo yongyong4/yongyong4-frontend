@@ -243,7 +243,7 @@ export default function HomePage() {
             onClear={clearRecent}
           />
         )}
-        <TrialNotice />
+        <TrialNotice outOfService={origin.outOfService} />
       </main>
 
       {ongoingTrip && <OngoingTripBanner {...ongoingTrip} onResume={() => navigate(PATHS.trip)} />}

@@ -17,6 +17,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 
 import { endTrip } from '@/apis/trip'
+import { readTripGeometry, transitLines } from '@/components/map/geometry'
 import BoardingFailedPopup from '@/components/popups/BoardingFailedPopup'
 import EndTripPopup from '@/components/popups/EndTripPopup'
 import RouteChangePopup from '@/components/popups/RouteChangePopup'
@@ -124,6 +125,7 @@ export default function TripPage() {
     }
   }
 
+  const transitSegments = trip.currentRoute.segments.filter((s) => s.mode !== 'WALK')
   const stopLabel = view.mapLabel.replace(/ 정류장$/, '').replace(/ · 내 위치$/, '')
 
   return (
@@ -132,8 +134,14 @@ export default function TripPage() {
     <main className="fixed inset-y-0 left-1/2 w-[390px] -translate-x-1/2 overflow-hidden">
       <TripMap
         label={view.mapLabel}
-        labelLeft={view.phase === 'riding' ? 161 : 138}
-        showWalkPath={view.phase === 'walking'}
+        phase={view.phase}
+        transitIndex={transitSegments.findIndex((s) => s.segmentId === view.currentSegmentId)}
+        transitMode={
+          transitSegments.find((s) => s.segmentId === view.currentSegmentId)?.mode === 'SUBWAY'
+            ? 'subway'
+            : 'bus'
+        }
+        geometry={readTripGeometry(trip.tripId, transitLines(trip.currentRoute.segments))}
       />
       <TripTopBar
         statusLabel={view.statusLabel}
