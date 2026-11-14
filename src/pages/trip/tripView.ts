@@ -12,6 +12,7 @@ import {
   type TripSegment,
   type TripStatusCode,
 } from '@/types/tripApi'
+import { MESSAGES } from '@/constants/messages'
 import { toStageLabel } from '@/utils/codeLabels'
 import { formatTime, minutesUntil } from '@/utils/time'
 
@@ -146,7 +147,7 @@ function seatLevel(count: number): StageWithUnknown {
 }
 
 function busArrivalText(minutes: number | null) {
-  return minutes === null ? '도착 정보가 없어요' : `${minutes}분 후 도착`
+  return minutes === null ? MESSAGES.noLiveArrival : `${minutes}분 후 도착`
 }
 
 function buildSteps(
@@ -251,18 +252,32 @@ export function buildTripView(
   const label = transit?.routeLabel ?? ''
   const busName = transitName(transit)
 
+  // 실시간 분석이 안 되는 탈것이면 탑승 단계·좌석 대신 안내 문구 (BE 요청)
+  // 지하철 → "버스 위험 분석 대상 아님", GBIS 매칭이 안 된 버스(서울버스 등) → "실시간 분석 미지원 노선"
+  const analysisNote =
+    transit?.mode === 'SUBWAY'
+      ? MESSAGES.analysisNotBus
+      : transit?.mode === 'BUS' && transit.matchStatus && transit.matchStatus !== 'MATCHED'
+        ? MESSAGES.analysisUnsupported
+        : null
+  // 분석 안 되는 탈것이면 재평가 결과(다음 버스 구간)는 이 탈것 정보가 아니라서 쓰지 않음
+  const liveNext = analysisNote ? null : next
+
   // 재평가 응답에는 예상 도착 시각이 없어서 진행 중 조회 값을 씀 (재평가 뒤 다시 불러옴)
   const expectedArrivalAt = trip.expectedArrivalAt
   const origin = segments[0]?.boardName ?? '출발지'
   const arrivalTime = formatTime(expectedArrivalAt)
   const topTitle = `${origin} → ${trip.destName}${arrivalTime ? ` · ${arrivalTime} 도착 예정` : ''}`
 
-  const seats = next ? getNextSegmentSeats(next) : null
-  const level = next
-    ? { level: toStageLabel(next.boardingStage), label: `탑승 ${toStageLabel(next.boardingStage)}` }
+  const seats = liveNext ? getNextSegmentSeats(liveNext) : null
+  const level = liveNext
+    ? {
+        level: toStageLabel(liveNext.boardingStage),
+        label: `탑승 ${toStageLabel(liveNext.boardingStage)}`,
+      }
     : null
   const basisTime = formatTime(evaluation?.dataBasisAt ?? null)
-  const busMinutes = minutesUntil(next?.predictedBusArrivalAt, now)
+  const busMinutes = minutesUntil(liveNext?.predictedBusArrivalAt, now)
   const steps = buildSteps(segments, currentIndex, phase, next, targetSegmentId)
   const badge = transit ? { type: toTransitType(transit), label } : null
 
@@ -307,8 +322,8 @@ export function buildTripView(
 
   if (phase === 'waiting' || phase === 'failed') {
     const stop = (transit?.boardName ?? next?.boardName ?? '').replace(/ 정류장$/, '')
-    const nextBusMinutes = minutesUntil(next?.nextBusArrivalAt, now)
-    const nextSeats = next?.nextBusRemainSeats ?? null
+    const nextBusMinutes = minutesUntil(liveNext?.nextBusArrivalAt, now)
+    const nextSeats = liveNext?.nextBusRemainSeats ?? null
 
     return {
       ...base,
@@ -317,9 +332,9 @@ export function buildTripView(
       level,
       headline:
         busMinutes === null
-          ? { value: null, unit: '도착 정보가 없어요' }
+          ? { value: null, unit: analysisNote ?? MESSAGES.noLiveArrival }
           : { value: String(busMinutes), unit: '분 후 도착' },
-      seats: seats ? seatsView(seats.remainSeats, seats.seatType, next?.seatStage) : null,
+      seats: seats ? seatsView(seats.remainSeats, seats.seatType, liveNext?.seatStage) : null,
       info:
         nextBusMinutes === null
           ? null
@@ -348,17 +363,23 @@ export function buildTripView(
       current?.walkMin === null || current?.walkMin === undefined
         ? { value: null, unit: '정류장으로 걷는 중' }
         : { value: String(current.walkMin), unit: '분 후 정류장 도착' },
-    seats: seats ? seatsView(seats.remainSeats, seats.seatType, next?.seatStage) : null,
-    info: next
+    seats: seats ? seatsView(seats.remainSeats, seats.seatType, liveNext?.seatStage) : null,
+    info: analysisNote
       ? {
           label: transit?.mode === 'SUBWAY' ? '지하철' : '버스',
-          value: `${busName} · ${busArrivalText(busMinutes)}`,
-          pill: {
-            level: toStageLabel(next.slackStage),
-            label: next.slackMin === null ? '여유 정보 없음' : `여유 ${next.slackMin}분`,
-          },
+          value: `${busName} · ${analysisNote}`,
+          pill: null,
         }
-      : null,
+      : liveNext
+        ? {
+            label: '버스',
+            value: `${busName} · ${busArrivalText(busMinutes)}`,
+            pill: {
+              level: toStageLabel(liveNext.slackStage),
+              label: liveNext.slackMin === null ? '여유 정보 없음' : `여유 ${liveNext.slackMin}분`,
+            },
+          }
+        : null,
     mapLabel: stopName(walkTarget),
     primary: { action: 'arriveStop', label: '도착했어요' },
     secondary: null,

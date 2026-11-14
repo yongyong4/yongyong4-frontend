@@ -23,6 +23,16 @@ export const MESSAGES = {
 
   // 공통 표시 요소 (2-3)
   analysisUnavailable: '실시간 분석이 어려운 구간이에요 경로 정보만 보여드려요',
+
+  // 실시간 분석 범위 안내 (BE 요청: 실시간 분석은 경기버스만 지원)
+  /** 탈 버스가 모두 서울버스 등 미지원 노선 */
+  analysisUnsupported: '실시간 분석 미지원 노선',
+  /** 경기버스와 미지원 노선이 섞인 경로 */
+  analysisPartial: '일부 구간만 실시간 분석 지원',
+  /** 경기버스인데 지금 도착정보가 없음 */
+  noLiveArrival: '현재 실시간 도착정보 없음',
+  /** 버스 없이 지하철(·도보)만 이용 */
+  analysisNotBus: '버스 위험 분석 대상 아님',
   waitingPassengers: '해당 정류장의 대기 인원에 따라 빈자리가 있어도 못 탈 수 있어요!',
   apiError: (time: string) => `실시간 정보를 불러오지 못해 ${time} 정보로 보여드려요`,
 } as const
