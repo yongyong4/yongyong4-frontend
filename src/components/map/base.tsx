@@ -9,6 +9,8 @@ import {
   type MapPoint,
 } from './kakao'
 
+export type MyLocationKind = 'walk' | 'wait' | 'bus' | 'subway'
+
 export type MapLabel = {
   point: MapPoint
   text: string
@@ -21,6 +23,11 @@ type MapBaseProps = {
   geometry?: RouteGeometry | null
   /** 내 위치 (초록 점) */
   myLocation?: MapPoint | null
+  /**
+   * 내 위치 표시 모양. walk 걷는 중(기본) / wait 정류장에서 기다리는 중 / bus 버스 탑승 중 / subway 지하철 탑승 중.
+   * 이동 중 화면에서 지금 어떤 단계인지 지도에서도 알아볼 수 있게 함
+   */
+  myLocationKind?: MyLocationKind
   /** 지점 옆 이름표 */
   labels?: MapLabel[]
   /**
@@ -43,6 +50,9 @@ const DEFAULT_CENTER: MapPoint = { x: 127.1459, y: 37.2699 }
 /** 지도가 최소한 보여줄 범위 (도 단위, 0.0035도 ≒ 400m) */
 const MIN_SPAN = 0.0035
 
+/** 지금 단계와 상관없는 경로선의 투명도 */
+const DIM_OPACITY = 0.3
+
 const COLORS = {
   bus: '#F2A900',
   subway: '#8B95A1',
@@ -59,6 +69,7 @@ const COLORS = {
 export default function MapBase({
   geometry,
   myLocation,
+  myLocationKind = 'walk',
   labels = [],
   visibleTop = 0,
   focus,
@@ -109,7 +120,9 @@ export default function MapBase({
   const geometryKey = JSON.stringify(geometry ?? null)
   const focusKey = JSON.stringify(focus ?? null)
   const labelsKey = JSON.stringify(labels)
-  const myKey = myLocation ? `${myLocation.x.toFixed(5)},${myLocation.y.toFixed(5)}` : ''
+  const myKey = myLocation
+    ? `${myLocation.x.toFixed(5)},${myLocation.y.toFixed(5)}:${myLocationKind}`
+    : ''
 
   // 정류장·선·이름표·내 위치 그리기
   useEffect(() => {
@@ -131,7 +144,7 @@ export default function MapBase({
             path: linePath,
             strokeWeight: 5,
             strokeColor: COLORS.walk,
-            strokeOpacity: 1,
+            strokeOpacity: path.dim ? DIM_OPACITY : 1,
             strokeStyle: 'shortdot',
             zIndex: 2,
           }),
@@ -145,7 +158,7 @@ export default function MapBase({
           path: linePath,
           strokeWeight: 11,
           strokeColor: '#FFFFFF',
-          strokeOpacity: 1,
+          strokeOpacity: path.dim ? DIM_OPACITY : 1,
           zIndex: 1,
         }),
         new maps.Polyline({
@@ -153,7 +166,7 @@ export default function MapBase({
           path: linePath,
           strokeWeight: 6,
           strokeColor: path.kind === 'bus' ? COLORS.bus : COLORS.subway,
-          strokeOpacity: 1,
+          strokeOpacity: path.dim ? DIM_OPACITY : 1,
           zIndex: 2,
         }),
       )
@@ -177,7 +190,7 @@ export default function MapBase({
         new maps.CustomOverlay({
           map,
           position: at(myLocation),
-          content: myLocationElement(),
+          content: myLocationElement(myLocationKind),
           xAnchor: 0.5,
           yAnchor: 0.5,
           zIndex: 4,
@@ -297,19 +310,49 @@ function stopElement(stop: MapStop): HTMLElement {
   return wrap
 }
 
-function myLocationElement(): HTMLElement {
-  const halo = document.createElement('div')
-  Object.assign(halo.style, {
-    width: '32px',
-    height: '32px',
-    borderRadius: '50%',
-    background: 'rgba(76,178,130,0.15)',
+// 아이콘은 코드에 고정된 문자열이라 innerHTML로 넣어도 안전함 (사용자·서버 값이 들어가지 않음)
+const BUS_ICON =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2.25H12C13.2426 2.25 14.25 3.25736 14.25 4.5V11.25C14.25 12.4926 13.2426 13.5 12 13.5H6C4.75736 13.5 3.75 12.4926 3.75 11.25V4.5C3.75 3.25736 4.75736 2.25 6 2.25Z"/><path d="M3.75 8.25H14.25M6 15.75V13.5M12 15.75V13.5"/></svg>'
+const TRAIN_ICON =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6.75 2.25H11.25C12.9069 2.25 14.25 3.59315 14.25 5.25V9.75C14.25 11.4069 12.9069 12.75 11.25 12.75H6.75C5.09315 12.75 3.75 11.4069 3.75 9.75V5.25C3.75 3.59315 5.09315 2.25 6.75 2.25Z"/><path d="M3.75 7.5H14.25M6 15.75L7.5 12.75M12 15.75L10.5 12.75"/></svg>'
+// 걷는 사람 (머리 + 몸 + 다리)
+const WALK_ICON =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="3.5" r="1.4" fill="white" stroke="none"/><path d="M8 16L9.2 11.2L7 9.2V6.2L10 5L12 8L14 9M9.2 11.2L11.6 12.6L12.4 16M7 9.2L5.2 10.6"/></svg>'
+
+// 내 위치 표시. 지금 단계에 따라 모양이 달라짐
+//  walk 걷는 중: 초록 점 + 연한 원 (기본) / wait 정류장 대기: 점을 큰 고리로 감쌈 /
+//  bus·subway 탑승 중: 초록 원 안에 버스·열차 아이콘
+function myLocationElement(kind: MyLocationKind): HTMLElement {
+  const holder = document.createElement('div')
+  Object.assign(holder.style, {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
   })
-  halo.appendChild(circle(17, COLORS.brand, '#FFFFFF', 3))
-  return halo
+
+  if (kind === 'bus' || kind === 'subway') {
+    const badge = circle(30, COLORS.brand, '#FFFFFF', 3)
+    Object.assign(badge.style, { display: 'flex', alignItems: 'center', justifyContent: 'center' })
+    badge.innerHTML = kind === 'bus' ? BUS_ICON : TRAIN_ICON
+    holder.appendChild(badge)
+    return holder
+  }
+
+  if (kind === 'wait') {
+    // 정류장에 서 있음: 바깥 고리 + 흰 원 + 초록 점
+    const ring = circle(40, 'rgba(76,178,130,0.15)', COLORS.brand, 2)
+    Object.assign(ring.style, { display: 'flex', alignItems: 'center', justifyContent: 'center' })
+    ring.appendChild(circle(20, COLORS.brand, '#FFFFFF', 3))
+    holder.appendChild(ring)
+    return holder
+  }
+
+  // 걷는 중: 연한 원 안에 걷는 사람 아이콘
+  const halo = circle(34, COLORS.brand, '#FFFFFF', 3)
+  Object.assign(halo.style, { display: 'flex', alignItems: 'center', justifyContent: 'center' })
+  halo.innerHTML = WALK_ICON
+  holder.appendChild(halo)
+  return holder
 }
 
 function labelElement(label: MapLabel): HTMLElement {

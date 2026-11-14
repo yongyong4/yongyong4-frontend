@@ -53,8 +53,10 @@ export type RoutePlan = {
   /** 카드 제목 (예: "동백2차 · 11분 후"). 없으면 빈 문자열 */
   headline: string
   level: StageWithUnknown
-  /** 단계 표시 문구. 없으면 level 그대로 (예: "분석 불가") */
+  /** 단계 표시 문구. 없으면 level 그대로 (예: "실시간 분석 미지원 노선 포함") */
   levelLabel?: string
+  /** 탈 버스 중 일부만 실시간 분석이 된 경로 (서울 버스 등 미지원 노선이 섞인 경우). 카드에 "일부 구간 분석"으로 표시 */
+  partial?: boolean
   items: PlanItem[]
   /** 이 후보의 경로 원본. 전략 비교·이동 시작 때 BE로 다시 보냄 */
   route: RouteInfo
@@ -101,6 +103,11 @@ export default function RoutePlanCard({
         <p className="text-label1 text-text-secondary min-w-0 flex-1 font-medium">
           {plan.headline}
         </p>
+        {plan.partial && (
+          <span className="bg-surface-sunken text-micro text-text-secondary shrink-0 rounded px-1.5 py-0.5 font-medium whitespace-nowrap">
+            일부 구간 분석
+          </span>
+        )}
         <LevelPill level={plan.level} label={plan.levelLabel} />
       </div>
 
@@ -144,7 +151,7 @@ function PlanItemView({ item }: { item: PlanItem }) {
             note={item.note}
           />
           <p className="text-note text-text-tertiary">
-            실시간 분석이 어려운 구간이에요. 경로 정보만 보여드려요
+            실시간 분석을 지원하지 않는 노선이 포함돼 있어요. 경로 정보만 보여드려요
           </p>
         </div>
       </div>
@@ -288,7 +295,7 @@ function RideTimeline({ withMiss }: { withMiss: boolean }) {
   )
 }
 
-// 분석 불가 구간용 회색 타임라인. 28×48
+// 실시간 분석 미지원 구간용 회색 타임라인. 28×48
 function UnavailableTimeline() {
   return (
     <svg

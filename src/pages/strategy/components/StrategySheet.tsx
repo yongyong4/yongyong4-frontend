@@ -31,21 +31,20 @@ export type StrategyOption = {
   note: ReactNode
   /** 지도에 띄울 이름표 (예: "앞 정류장 · 동백 쥬네브"). [상세]를 누르면 이 전략 기준으로 바뀜 */
   mapLabel?: string
-  /**
-   * [상세]를 눌렀을 때 시트 위쪽 요약을 이 전략 기준으로 바꿀 값.
-   * 없는 항목은 기본 요약(현재 경로) 그대로. 아예 없으면 기본 요약 그대로 보임
-   */
-  summary?: Partial<StrategySummary>
+  /** [상세]를 눌렀을 때 시트 위쪽에 보여줄 이 전략의 요약 */
+  summary: StrategySummary
 }
 
-/** 시트 위쪽 요약 (노선·도착 정보·여유시간·예측 빈자리) */
+/** 시트 위쪽 요약 박스 (노선·도착 정보·여유시간·예측 빈자리). 선택한 전략의 [상세]를 눌렀을 때만 보임 */
 export type StrategySummary = {
-  routeBadge: { type: TransitType; label: string }
+  /** 버스 노선 배지. 지하철처럼 노선이 없는 전략이면 null */
+  routeBadge: { type: TransitType; label: string } | null
   /** 예: "동백2차 → 강남역" */
   title: string
   /** 실시간 기준 시각 (예: "07:29") */
   baseAt: string
-  arrivesInMinutes: number
+  /** 버스가 도착할 때까지 분. 모르면 null (기준 시각만 보여줌) */
+  arrivesInMinutes: number | null
   level: StageWithUnknown
   levelLabel?: string
   slack: StrategyStat
@@ -53,16 +52,19 @@ export type StrategySummary = {
 }
 
 /** 시트에 보여줄 내용 */
-export type StrategySheetData = StrategySummary & {
+export type StrategySheetData = {
   strategies: StrategyOption[]
 }
 
-type StrategySheetProps = StrategySheetData & {
-  /** 지금 선택된 전략 id. 하나만 선택됨 */
-  selectedId: string
+type StrategySheetProps = {
+  /** [상세]를 누른 전략의 요약. 없으면(처음 상태) 위쪽 요약 박스를 아예 보여주지 않음 */
+  summary: StrategySummary | null
+  /** 카드로 보여줄 전략. [상세]로 요약에 올라간 전략은 빼고 넘김 */
+  strategies: StrategyOption[]
+  /** 지금 눌러 둔 전략 id. 처음에는 아무것도 선택되지 않음 */
+  selectedId: string | null
   onSelect: (id: string) => void
 }
-
 const STAGE_TEXT: Record<StageWithUnknown, string> = {
   가능: 'text-level-ok',
   주의: 'text-level-warn',
@@ -77,35 +79,64 @@ export function Em({ children }: { children: ReactNode }) {
 
 // ── 시트 내용 ───────────────────────────────────────────────────────
 
-// 전략 비교 시트 안쪽: 헤더, 여유시간·빈자리, 전략 카드 목록.
+// 전략 비교 시트 안쪽: (선택한 전략의 상세 요약), 전략 카드 목록.
 // 시트 틀(손잡이, 내리기)과 하단 버튼은 StrategyOverlay가 담당
 export default function StrategySheet({
-  routeBadge,
-  title,
-  baseAt,
-  arrivesInMinutes,
-  level,
-  levelLabel,
-  slack,
-  seats,
+  summary,
   strategies,
   selectedId,
   onSelect,
 }: StrategySheetProps) {
   return (
     <div>
+      {summary && <SummaryBox summary={summary} />}
+
+      {strategies.length > 0 && (
+        <>
+          <div
+            className={cn('flex items-center justify-between whitespace-nowrap', summary && 'mt-6')}
+          >
+            <h2 className="text-title3 font-medium">다른 이동 전략</h2>
+            {/* 정렬 방식은 아직 한 가지만 디자인되어 있음 */}
+            <span className="text-note text-text-tertiary">덜 늦는 순</span>
+          </div>
+
+          <ul className="mt-3 flex flex-col gap-2.5">
+            {strategies.map((option) => (
+              <StrategyCard
+                key={option.id}
+                option={option}
+                selected={option.id === selectedId}
+                onSelect={() => onSelect(option.id)}
+              />
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
+  )
+}
+
+// 선택한 전략의 [상세] 요약: 노선·제목·기준 시각, 여유시간·예측 빈자리, 대기 인원 안내
+function SummaryBox({ summary }: { summary: StrategySummary }) {
+  const { routeBadge, title, baseAt, arrivesInMinutes, level, levelLabel, slack, seats } = summary
+  return (
+    <section aria-label="선택한 전략 상세">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-1">
           {/* 정류장 이름이 길면 제목이 두 줄로 내려가고, 배지와 단계 표시는 줄어들지 않음 */}
           <div className="flex items-center gap-1.5">
-            <span className="shrink-0">
-              <LineBadge type={routeBadge.type} label={routeBadge.label} />
-            </span>
+            {routeBadge && (
+              <span className="shrink-0">
+                <LineBadge type={routeBadge.type} label={routeBadge.label} />
+              </span>
+            )}
             <h1 className="text-title2 min-w-0 font-medium break-keep">{title}</h1>
           </div>
           <p className="text-note text-text-secondary flex items-center gap-[5px] whitespace-nowrap">
             <span aria-hidden="true" className="bg-level-bad size-1.5 rounded-full" />
-            {baseAt} 기준 · {arrivesInMinutes}분 후 도착
+            {baseAt} 기준
+            {arrivesInMinutes !== null && ` · ${arrivesInMinutes}분 후 도착`}
           </p>
         </div>
         <span className="shrink-0">
@@ -122,24 +153,7 @@ export default function StrategySheet({
         <UsersIcon />
         {MESSAGES.waitingPassengers}
       </p>
-
-      <div className="mt-6 flex items-center justify-between whitespace-nowrap">
-        <h2 className="text-title3 font-medium">다른 이동 전략</h2>
-        {/* 정렬 방식은 아직 한 가지만 디자인되어 있음 */}
-        <span className="text-note text-text-tertiary">덜 늦는 순</span>
-      </div>
-
-      <ul className="mt-3 flex flex-col gap-2.5">
-        {strategies.map((option) => (
-          <StrategyCard
-            key={option.id}
-            option={option}
-            selected={option.id === selectedId}
-            onSelect={() => onSelect(option.id)}
-          />
-        ))}
-      </ul>
-    </div>
+    </section>
   )
 }
 

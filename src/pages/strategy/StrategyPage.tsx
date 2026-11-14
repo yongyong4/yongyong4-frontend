@@ -186,7 +186,8 @@ function StrategyOverlayWithMap({
   confirming,
   confirmError,
 }: OverlayWithMapProps) {
-  const [detailId, setDetailId] = useState<string | null>(null)
+  // 지도가 보여줄 전략 id. 카드를 누르면 그 전략, [상세] 후에는 펼친 전략, 처음에는 없음(지금 고른 경로)
+  const [shownId, setShownId] = useState<string | null>(null)
   // 위치를 못 써서 기본 출발지(동백역)를 쓰는 경우에는 내 위치 점을 찍지 않음
   const myLocation = origin.isCurrent ? origin : null
 
@@ -223,8 +224,7 @@ function StrategyOverlayWithMap({
     )
   }
 
-  // 지도에는 [상세]를 누른 전략(처음에는 추천 전략)의 경로를 그림
-  const shownId = detailId ?? ui.defaultSelectedId
+  // 지도에는 처음에는 지금 고른 경로를 그리고, 전략 카드를 누르면 그 전략의 경로로 바뀜
   const shown = shownId ? ui.views.get(shownId) : undefined
   const option = ui.options.find((o) => o.id === shownId)
   const geometry = shown
@@ -240,12 +240,10 @@ function StrategyOverlayWithMap({
         origin={origin}
       />
       <StrategyOverlay
-        {...ui.summary}
         strategies={ui.options}
-        defaultSelectedId={ui.defaultSelectedId}
         onClose={onClose}
         onConfirm={onConfirm}
-        onDetail={(strategy) => setDetailId(strategy.id)}
+        onShownChange={setShownId}
         confirming={confirming}
         confirmError={confirmError}
       />

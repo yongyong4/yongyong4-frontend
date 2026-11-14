@@ -1,6 +1,8 @@
 // 지도에 그릴 경로 모양 (정류장 + 선)
 // 후보 경로 탐색 응답(GET /routes/search)의 구간 좌표로 만듦.
-// BE가 실제 버스 노선 모양은 주지 않아서 정류장 사이를 직선으로 이음
+// 구간이 지나는 정류장 좌표(passStops)를 따라 선을 이음. BE가 도로를 따라가는 실제 노선 모양까지는
+// 주지 않아서 정류장과 정류장 사이는 직선이고, passStops가 없는 구간은 출발·도착 두 점만 직선으로 이음
+// 걷는 구간은 useWalkingPaths가 실제 도보 경로(GET /routes/walking)로 바꿔 줌
 
 import type { RouteInfo } from '@/apis/routes'
 
@@ -13,7 +15,8 @@ export type MapStop = MapPoint & { name: string; kind: StopKind }
 
 export type PathKind = 'bus' | 'subway' | 'walk'
 
-export type MapPath = { kind: PathKind; points: MapPoint[] }
+/** dim: 지금 단계와 상관없는 구간이라 흐리게 그림 (이동 중 화면에서 지금 구간만 돋보이게) */
+export type MapPath = { kind: PathKind; points: MapPoint[]; dim?: boolean }
 
 export type RouteGeometry = { stops: MapStop[]; paths: MapPath[] }
 
@@ -37,6 +40,10 @@ export function geometryFromRoute(route: RouteInfo, options: Options = {}): Rout
       kind: (s.mode === 'BUS' ? 'bus' : 'subway') as PathKind,
       start: { x: s.startX!, y: s.startY!, name: s.startName ?? '' },
       end: { x: s.endX!, y: s.endY!, name: s.endName ?? '' },
+      // 지나는 정류장 좌표. 좌표가 깨진 항목은 뺌
+      pass: (s.passStops ?? [])
+        .filter((p) => isNum(p.x) && isNum(p.y))
+        .map((p) => ({ x: p.x, y: p.y })),
     }))
 
   const stops: MapStop[] = []
@@ -45,7 +52,8 @@ export function geometryFromRoute(route: RouteInfo, options: Options = {}): Rout
 
   transit.forEach((seg, index) => {
     const first = index === 0
-    const busPoints: MapPoint[] = [seg.start, seg.end]
+    // 정류장이 2개 이상 있으면 정류장을 따라, 없으면 출발·도착 두 점을 직선으로
+    const busPoints: MapPoint[] = seg.pass.length >= 2 ? [...seg.pass] : [seg.start, seg.end]
 
     if (first && moveTo && !same(moveTo, seg.start)) {
       // 앞 정류장에서 타면: 앞 정류장 → 원래 정류장 → 하차

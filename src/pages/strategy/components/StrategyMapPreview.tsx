@@ -1,6 +1,7 @@
 import MapBase, { type MapLabel } from '@/components/map/base'
 import { boardingFocus, type RouteGeometry } from '@/components/map/geometry'
 import type { MapPoint } from '@/components/map/kakao'
+import { useWalkingPaths } from '@/components/map/useWalkingPaths'
 
 type StrategyMapPreviewProps = {
   /** 고른(또는 [상세]를 누른) 전략의 경로 */
@@ -26,10 +27,13 @@ export default function StrategyMapPreview({
   myLocation,
   origin,
 }: StrategyMapPreviewProps) {
+  // 걷는 구간은 직선 대신 실제 도보 경로로 (받아오는 동안은 직선)
+  const drawn = useWalkingPaths(geometry)
+
   return (
     <div className="absolute inset-0 overflow-hidden">
       <MapBase
-        geometry={geometry}
+        geometry={drawn}
         labels={labels}
         myLocation={myLocation}
         // 정류장 선택 화면이라 경로 전체(동백 → 강남)가 아니라 출발 위치와 타는 정류장 주변을 보여줌
