@@ -133,6 +133,10 @@ function rideItem(
             note: `${view.totalMinIfMiss}분`,
             nextBus: view.nextRouteLabel ?? view.routeLabel ?? '',
             nextInMinutes: minutesBetween(analysis.evaluatedAt, view.nextBusArrivalAt) ?? 0,
+            nextSeats:
+              view.nextBusSeatType !== 'NONE' && view.nextBusRemainSeats !== null
+                ? view.nextBusRemainSeats
+                : undefined,
           }
         : undefined,
     },
@@ -232,7 +236,11 @@ export function buildRoutePlans(
 
     const minutesToBus = minutesBetween(analysis.evaluatedAt, firstView.predictedBusArrivalAt)
     analyzed.push({
-      rank: STAGE_RANK[result.strategyRiskStage ?? 'UNKNOWN'],
+      // 빈자리가 0석이면 BE 단계가 낮게 와도 추천에서는 위험 경로로 취급
+      rank:
+        firstView.remainSeats === 0
+          ? Math.max(STAGE_RANK[result.strategyRiskStage ?? 'UNKNOWN'], STAGE_RANK.RISK)
+          : STAGE_RANK[result.strategyRiskStage ?? 'UNKNOWN'],
       totalMin: firstView.totalMinIfBoard ?? route.totalTimeMin,
       plan: {
         id: `route-${route.routeIndex}`,
@@ -245,6 +253,7 @@ export function buildRoutePlans(
           .filter(Boolean)
           .join(' · '),
         level: stageOf(result.strategyRiskStage),
+        levelLabel: levelLabelOf(stageOf(result.strategyRiskStage)),
         partial,
         items,
         route,
