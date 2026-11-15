@@ -43,7 +43,8 @@ export function comparisonText(
   initial: number | null | undefined,
   failed: number | null | undefined,
 ): string | null {
-  if (actual === null) return null
+  // 1분도 안 돼서 끝난 이동은 예상 시간과 비교하는 게 의미 없어서 문구를 빼고 "1분 미만"만 보여줌
+  if (actual === null || actual < 1) return null
 
   let first: { text: string; late: boolean } | null = null
   if (initial !== null && initial !== undefined) {

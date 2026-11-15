@@ -147,7 +147,9 @@ function seatLevel(count: number): StageWithUnknown {
 }
 
 function busArrivalText(minutes: number | null) {
-  return minutes === null ? MESSAGES.noLiveArrival : `${minutes}분 후 도착`
+  if (minutes === null) return MESSAGES.noLiveArrival
+  // 남은 시간이 1분이 안 되면(또는 예정 시각이 지났으면) "0분 후" 대신 "곧"
+  return minutes < 1 ? '곧 도착' : `${minutes}분 후 도착`
 }
 
 function buildSteps(
@@ -176,7 +178,14 @@ function buildSteps(
       steps.push({
         key: String(segment.segmentId),
         state,
-        title: state === 'current' ? '정류장까지 걷기' : `도보 ${segment.walkMin ?? '-'}분`,
+        title:
+          state === 'current'
+            ? '정류장까지 걷기'
+            : segment.walkMin === null || segment.walkMin === undefined
+              ? '도보'
+              : segment.walkMin < 1
+                ? '도보 1분 미만'
+                : `도보 ${segment.walkMin}분`,
         hint: state === 'current' ? '도착 후 “도착했어요”를 눌러 주세요' : undefined,
         sub:
           state === 'done' ? `${target} 도착` : state === 'upcoming' ? `${target}까지` : undefined,
@@ -311,7 +320,9 @@ export function buildTripView(
       headline:
         alightMinutes === null
           ? { value: null, unit: `${alightName} 하차 예정` }
-          : { value: String(alightMinutes), unit: `분 후 ${alightName} 하차` },
+          : alightMinutes < 1
+            ? { value: null, unit: `곧 ${alightName} 하차` }
+            : { value: String(alightMinutes), unit: `분 후 ${alightName} 하차` },
       seats: null,
       info: null,
       mapLabel: '내 위치',
@@ -333,14 +344,16 @@ export function buildTripView(
       headline:
         busMinutes === null
           ? { value: null, unit: analysisNote ?? MESSAGES.noLiveArrival }
-          : { value: String(busMinutes), unit: '분 후 도착' },
+          : busMinutes < 1
+            ? { value: null, unit: '버스가 곧 도착해요' }
+            : { value: String(busMinutes), unit: '분 후 도착' },
       seats: seats ? seatsView(seats.remainSeats, seats.seatType, liveNext?.seatStage) : null,
       info:
         nextBusMinutes === null
           ? null
           : {
               label: '다음 도착',
-              value: `${nextBusMinutes}분 후`,
+              value: nextBusMinutes < 1 ? '곧 도착' : `${nextBusMinutes}분 후`,
               pill:
                 nextSeats === null
                   ? null
@@ -362,7 +375,9 @@ export function buildTripView(
     headline:
       current?.walkMin === null || current?.walkMin === undefined
         ? { value: null, unit: '정류장으로 걷는 중' }
-        : { value: String(current.walkMin), unit: '분 후 정류장 도착' },
+        : current.walkMin < 1
+          ? { value: null, unit: '정류장 바로 앞이에요' }
+          : { value: String(current.walkMin), unit: '분 후 정류장 도착' },
     seats: seats ? seatsView(seats.remainSeats, seats.seatType, liveNext?.seatStage) : null,
     info: analysisNote
       ? {
