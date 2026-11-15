@@ -29,6 +29,8 @@ export type RideScenario = {
     /** 다음 버스 번호 (예: "5003") */
     nextBus: string
     nextInMinutes: number
+    /** 다음 버스 예측 빈자리. 모르면 생략 */
+    nextSeats?: number
   }
 }
 
@@ -210,6 +212,11 @@ function PlanItemView({ item }: { item: PlanItem }) {
               />
               <p className="text-note text-text-tertiary whitespace-nowrap">
                 {MESSAGES.nextBus(miss.nextBus, miss.nextInMinutes)}
+                {miss.nextSeats !== undefined && (
+                  <>
+                    {' · '}빈자리 <Em>{miss.nextSeats}</Em>석
+                  </>
+                )}
               </p>
             </div>
           )}

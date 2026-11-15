@@ -100,6 +100,13 @@ function mapLabelOf(strategy: StrategyView): string {
   return board ?? ''
 }
 
+const STRATEGY_NAMES: Record<string, string> = {
+  KEEP: '그대로 타기',
+  BACKTRACK: '앞 정류장에서 타기',
+  DETOUR: '다른 정류장에서 타기',
+  OTHER_MODE: '다른 교통수단으로 가기',
+}
+
 function optionOf(
   strategy: StrategyView,
   id: string,
@@ -112,11 +119,16 @@ function optionOf(
   const warn = level !== '가능' && strategy.totalMinIfMiss !== null
   const hasSeats = strategy.seatType !== 'NONE' && strategy.remainSeats !== null
   const nextIn = minutesBetween(response.dataBasisAt, strategy.nextBusArrivalAt)
+  const nextSeg = strategy.analysis[0]
+  const nextLabel = nextSeg?.nextRouteLabel ?? null
+  const nextSeats =
+    nextSeg && nextSeg.nextBusSeatType !== 'NONE' ? (nextSeg.nextBusRemainSeats ?? null) : null
 
   const detail = warn
     ? [
         strategy.totalMinIfBoard !== null && `성공 시 ${strategy.totalMinIfBoard}분`,
-        nextIn !== null && `다음 도착 ${Math.max(0, nextIn)}분 후`,
+        nextIn !== null && `다음 ${nextLabel ? nextLabel + '번 ' : ''}${Math.max(0, nextIn)}분 후`,
+        nextSeats !== null && `빈자리 ${nextSeats}석`,
       ]
     : [
         strategy.moveToName,
@@ -144,8 +156,9 @@ function optionOf(
       : strategy.isCurrent
         ? { label: '현재 경로', tone: 'current' }
         : undefined,
-    title: strategy.title,
+    title: strategy.title || STRATEGY_NAMES[strategy.strategyType] || '',
     level,
+    levelLabel: levelLabelOf(level),
     timeLabel: warn ? '실패 시' : '예상',
     timeLabelTone: warn ? 'warn' : 'default',
     time: time === null || time === undefined ? '-' : `${time}분`,
