@@ -2,10 +2,12 @@
 // - 진행 중인 이동 불러오기 (F-01-05)
 // - 재평가: 처음 들어왔을 때, 2분마다, 화면 복귀, 새로고침, 상태 변경 직후 (F-05-02)
 // - 상태 버튼 (F-05-01)
+// - 시연 모드: BE 가상 시계가 바뀌면 바로 재평가 (apis/demoClock.ts)
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { getDemoNow, refreshDemoClock, subscribeDemoClock } from '@/apis/demoClock'
 import {
   changeTripStatus,
   decideSuggestion,
@@ -61,6 +63,8 @@ export function useTripSession(myLocation: MapPoint | null = null) {
         setErrorMessage(null)
         // 예상 도착 시각은 재평가 응답에 없고 진행 중 조회에만 있어서 다시 불러옴
         void queryClient.invalidateQueries({ queryKey: ACTIVE_TRIP_QUERY_KEY })
+        // 시연 모드면 재평가 뒤 가상 시각도 다시 맞춤 (운영에서는 아무것도 안 함)
+        void refreshDemoClock()
         if (showToast) setToast(MESSAGES.recalculated(formatTime(result.evaluatedAt) ?? ''))
         return result
       } catch {
@@ -101,6 +105,18 @@ export function useTripSession(myLocation: MapPoint | null = null) {
       window.clearInterval(id)
       document.removeEventListener('visibilitychange', onVisible)
     }
+  }, [tripId])
+
+  // 시연 모드: BE가 가상 시계를 넘기면(예: 08:10 → 08:18) 바로 다시 계산해서 새 시각의 결과를 보여줌
+  useEffect(() => {
+    if (tripId === null) return
+    // 처음 받은 가상 시각(시작값)에는 다시 계산하지 않고, 시계가 바뀌었을 때만
+    let last = getDemoNow()
+    return subscribeDemoClock(() => {
+      const next = getDemoNow()
+      if (last !== null && next !== last) void reevaluateRef.current('AUTO')
+      last = next
+    })
   }, [tripId])
 
   // 토스트는 잠깐만
