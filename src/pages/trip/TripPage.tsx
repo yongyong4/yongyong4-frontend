@@ -11,9 +11,9 @@
 // - P-01 경로 변경 제안: 재평가 결과가 SUGGEST일 때 (탑승 실패 제외)
 // - P-02 탑승 실패 후 재평가: 재평가 결과에 failureOptions가 있을 때
 // - P-03 이동 종료 확인: [종료] 또는 마지막 구간 [도착했어요]
-// - P-04 정류장 도착 확인: 정류장 50m 안에 들어왔을 때 (정류장 좌표가 BE에 추가되면 연결)
+// - P-04 정류장 도착 확인: 걷는 중 타려는 정류장 50m 안에 들어왔을 때 자동으로 (stopArrival.ts)
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 
 import { endTrip } from '@/apis/trip'
@@ -31,6 +31,7 @@ import TripMap from './components/TripMap'
 import TripSheet from './components/TripSheet'
 import TripTopBar from './components/TripTopBar'
 import { buildBoardingFailed, buildRouteChange, hasRouteChange } from './popupViews'
+import { findWalkTargetStop, isNearStop, markAsked, wasAsked } from './stopArrival'
 import { buildTripView, type TripAction } from './tripView'
 import { useTripSession } from './useTripSession'
 
@@ -57,6 +58,8 @@ export default function TripPage() {
   /** 이미 답한(또는 닫은) 재평가 결과. 같은 제안을 다시 띄우지 않음 */
   const [handledEvaluationId, setHandledEvaluationId] = useState<number | null>(null)
   const [ending, setEnding] = useState(false)
+  /** 이 화면에서 이미 물어본 정류장 (기기 저장이 안 될 때 대비) */
+  const askedRef = useRef(new Set<string>())
 
   // 진행 중인 이동이 없으면: 자동 종료된 요약이 있으면 요약으로, 아니면 홈으로
   useEffect(() => {
@@ -69,7 +72,40 @@ export default function TripPage() {
     }
   }, [activeQuery.data, navigate])
 
-  if (!trip) {
+  const view = trip ? buildTripView(trip, evaluation, session.statusOverride, now) : null
+
+  // 재평가 결과로 뜨는 팝업 (아직 답하지 않은 결과만)
+  const pending = evaluation && evaluation.evaluationId !== handledEvaluationId ? evaluation : null
+  const boardingFailed =
+    pending && view?.phase === 'failed' ? buildBoardingFailed(pending, view, now) : null
+  const routeChange =
+    pending && view && hasRouteChange(pending) ? buildRouteChange(pending, view, now) : null
+
+  const transitSegments = trip?.currentRoute.segments.filter((s) => s.mode !== 'WALK') ?? []
+  const transitIndex = transitSegments.findIndex((s) => s.segmentId === view?.currentSegmentId)
+  const geometry = trip
+    ? readTripGeometry(trip.tripId, transitLines(trip.currentRoute.segments))
+    : null
+
+  // P-04: 걷는 중 타려는 정류장 50m 안에 들어오면 한 번만 물어봄 (다른 팝업이 떠 있으면 기다림)
+  const walkTarget =
+    view?.phase === 'walking'
+      ? findWalkTargetStop(geometry, transitIndex, transitSegments[transitIndex]?.boardName)
+      : null
+  const nearStop = isNearStop(myLocation, walkTarget)
+  const otherPopupOpen = manualPopup !== null || !!boardingFailed || !!routeChange
+  const tripId = trip?.tripId ?? null
+  const segmentId = view?.currentSegmentId ?? null
+  useEffect(() => {
+    if (!nearStop || otherPopupOpen || session.busy || tripId === null || segmentId === null) return
+    const key = `${tripId}:${segmentId}`
+    if (askedRef.current.has(key) || wasAsked(tripId, segmentId)) return
+    askedRef.current.add(key)
+    markAsked(tripId, segmentId)
+    setManualPopup('stopArrival')
+  }, [nearStop, otherPopupOpen, session.busy, tripId, segmentId])
+
+  if (!trip || !view) {
     return (
       <main className="relative flex min-h-[844px] items-center justify-center bg-[#f6f5f1]">
         <p className="text-label1 text-text-tertiary">
@@ -78,15 +114,6 @@ export default function TripPage() {
       </main>
     )
   }
-
-  const view = buildTripView(trip, evaluation, session.statusOverride, now)
-
-  // 재평가 결과로 뜨는 팝업 (아직 답하지 않은 결과만)
-  const pending = evaluation && evaluation.evaluationId !== handledEvaluationId ? evaluation : null
-  const boardingFailed =
-    pending && view.phase === 'failed' ? buildBoardingFailed(pending, view, now) : null
-  const routeChange =
-    pending && hasRouteChange(pending) ? buildRouteChange(pending, view, now) : null
 
   const answer = async (accepted: boolean) => {
     if (!pending) return
@@ -127,7 +154,6 @@ export default function TripPage() {
     }
   }
 
-  const transitSegments = trip.currentRoute.segments.filter((s) => s.mode !== 'WALK')
   const stopLabel = view.mapLabel.replace(/ 정류장$/, '').replace(/ · 내 위치$/, '')
 
   return (
@@ -137,13 +163,13 @@ export default function TripPage() {
       <TripMap
         label={view.mapLabel}
         phase={view.phase}
-        transitIndex={transitSegments.findIndex((s) => s.segmentId === view.currentSegmentId)}
+        transitIndex={transitIndex}
         transitMode={
           transitSegments.find((s) => s.segmentId === view.currentSegmentId)?.mode === 'SUBWAY'
             ? 'subway'
             : 'bus'
         }
-        geometry={readTripGeometry(trip.tripId, transitLines(trip.currentRoute.segments))}
+        geometry={geometry}
       />
       <TripTopBar
         statusLabel={view.statusLabel}
