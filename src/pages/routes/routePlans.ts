@@ -8,6 +8,7 @@ import type {
   SegmentInfo,
   SegmentView,
 } from '@/apis/routes'
+import { currentTime } from '@/apis/demoClock'
 import { MESSAGES } from '@/constants/messages'
 import type { StageCode } from '@/types/api'
 import type { StageWithUnknown } from '@/types/stage'
@@ -166,7 +167,8 @@ function lineItem(segment: SegmentInfo): PlanItem {
 export function buildRoutePlans(
   routes: RouteInfo[],
   analysis: AnalysisResponse | null,
-  now = Date.now(),
+  // 시연 모드면 BE 가상 시각, 아니면 기기 시각
+  now = currentTime(),
 ): RoutePlan[] {
   type Built = { plan: RoutePlan; rank: number; totalMin: number }
   const analyzed: Built[] = []

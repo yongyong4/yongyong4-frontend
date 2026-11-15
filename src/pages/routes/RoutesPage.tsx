@@ -96,8 +96,12 @@ export default function RoutesPage() {
   const empty = routesQuery.isSuccess && picked.length === 0
 
   // 불러오기 전에는 비워둠 (불러오는 중에는 카드가 아직 없어서 보이지 않는 값)
+  // 출발 시각은 BE가 분석한 시각(evaluatedAt)을 먼저 씀. 시연 모드에서 BE 가상 시각(08:10 등)과 맞추기 위함
+  // 분석이 없으면(실패 등) 불러온 시각으로
   const loadedAt = analysisQuery.dataUpdatedAt || routesQuery.dataUpdatedAt
-  const departAt = loadedAt ? (formatTime(new Date(loadedAt).toISOString()) ?? '') : ''
+  const departAt =
+    formatTime(analysisQuery.data?.evaluatedAt) ??
+    (loadedAt ? (formatTime(new Date(loadedAt).toISOString()) ?? '') : '')
   const baseAt = formatTime(analysisQuery.data?.dataBasisAt) ?? departAt
 
   // 주소창으로 바로 들어와서 되돌아갈 기록이 없으면 홈으로
