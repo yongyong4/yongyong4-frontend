@@ -87,6 +87,13 @@ export default function TripSummaryPage() {
           {view.durationMin === null ? (
             // 기능명세서 F-06-01: 자동 종료인데 목적지 근처 도착 시각이 없으면 "기록 없음"
             <p className="text-body1 font-medium">총 소요 시간 기록 없음</p>
+          ) : view.durationMin < 1 ? (
+            // "총 0분" 대신 (출발하고 바로 종료한 경우)
+            <p className="flex items-baseline gap-1 whitespace-nowrap">
+              <span className="text-label1 text-text-secondary font-medium">총</span>
+              <span className="text-display font-bold">1</span>
+              <span className="text-body1 font-medium">분 미만 걸렸어요</span>
+            </p>
           ) : (
             <p className="flex items-baseline gap-1 whitespace-nowrap">
               <span className="text-label1 text-text-secondary font-medium">총</span>

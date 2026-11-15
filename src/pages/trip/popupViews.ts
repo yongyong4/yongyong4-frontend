@@ -78,7 +78,7 @@ export function buildRouteChange(
           `${stopName(s.moveToName)}까지`,
           [
             s.extraWalkMin ? `도보 ${s.extraWalkMin}분` : null,
-            busMinutes === null ? null : `${busMinutes}분 후 도착`,
+            busMinutes === null ? null : busMinutes < 1 ? '곧 도착' : `${busMinutes}분 후 도착`,
             seatsText(s.remainSeats),
           ]
             .filter(Boolean)
@@ -110,7 +110,11 @@ export function buildBoardingFailed(
       badge: { type: toTransitType({ mode: 'BUS', routeLabel: failedLabel }), label: failedLabel },
       detail: [
         '이 정류장',
-        waitMinutes === null ? '도착 정보 없음' : `${waitMinutes}분 후`,
+        waitMinutes === null
+          ? '도착 정보 없음'
+          : waitMinutes < 1
+            ? '곧 도착'
+            : `${waitMinutes}분 후`,
         seatsText(wait.remainSeats),
       ]
         .filter(Boolean)
